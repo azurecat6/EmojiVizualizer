@@ -1,0 +1,1269 @@
+<!DOCTYPE html>
+<!-- Самодостаточная версия приложения (встроенные стили и скрипты в одном файле) -->
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="EmojiVisualizer — AI-powered 3D visual art generator from emoji stories">
+<meta name="theme-color" content="#5b4fcf">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎬</text></svg>">
+<title>EmojiVisualizer</title>
+<style>
+/* Основные стили UI и панели рендера. Для отдельных версий вынесены в style.css */
+@import url('https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;1,9..40,300&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{height:100%;transform:none!important}
+:root{--ink:#09090e;--paper:#f5f2ec;--warm:#e8e3d8;--line:#c8c2b4;--deep:#1a1826;--violet:#5b4fcf;--violet-l:#7b6fd4;--rust:#c94f2a;--text:#1a1826;--muted:#7a7267;--render-bg:#e8e3d8;--render-head:#ddd7c9;--render-txt:#4a4640}
+[data-theme="dark"]{--ink:#e8e3d8;--paper:#121218;--warm:#1c1c26;--line:#2a2a3a;--deep:#0d0d14;--text:#d4d0c8;--muted:#8a8694;--render-bg:#1a1a24;--render-head:#141420;--render-txt:rgba(255,255,255,.4);--render-txt2:rgba(255,255,255,.25);--render-border:rgba(255,255,255,.07)}
+
+.theme-toggle{width:48px;height:26px;border-radius:40px;border:1.5px solid var(--line);background:var(--warm);cursor:pointer;position:relative;transition:all .3s;flex-shrink:0;padding:0}
+.theme-toggle .thumb{position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:var(--violet);transition:all .3s;display:flex;align-items:center;justify-content:center;font-size:.7rem}
+[data-theme="dark"] .theme-toggle .thumb{left:24px}
+.theme-toggle .ico-sun,.theme-toggle .ico-moon{position:absolute;top:50%;transform:translateY(-50%);font-size:.65rem;transition:opacity .2s}
+.theme-toggle .ico-sun{right:6px;opacity:1}
+.theme-toggle .ico-moon{left:6px;opacity:.3}
+[data-theme="dark"] .theme-toggle .ico-sun{opacity:.3}
+[data-theme="dark"] .theme-toggle .ico-moon{opacity:1}
+body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--text);height:100vh;overflow:hidden;display:flex;flex-direction:column;transform:none!important}
+*{scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+select{background:var(--warm);color:var(--text)}
+select option{background:var(--warm);color:var(--text)}
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--muted)}
+@media(max-width:780px){body{overflow:auto;height:auto;min-height:100vh}}
+
+.header{padding:.8rem 1.5rem;border-bottom:1.5px solid var(--line);display:flex;align-items:center;justify-content:space-between;background:var(--paper);flex-shrink:0}
+.logo{font-family:'Dela Gothic One',sans-serif;font-size:1.4rem;color:var(--ink)}
+.logo span{color:var(--violet)}
+.subtitle{font-size:.72rem;color:var(--muted);font-style:italic;margin-top:1px}
+.mode-switch{display:flex;background:var(--warm);border:1.5px solid var(--line);border-radius:40px;padding:3px;gap:2px}
+.mode-btn{padding:5px 16px;border:none;border-radius:40px;font-family:'DM Sans',sans-serif;font-size:.8rem;font-weight:500;cursor:pointer;background:transparent;color:var(--muted);transition:all .2s}
+.mode-btn.active{background:var(--ink);color:var(--paper)}
+
+.workspace{display:flex;flex:1;min-height:0;overflow:hidden}
+.left-panel{display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;width:340px;min-width:200px;max-width:70%}
+.inner-tabs{display:flex;border-bottom:1.5px solid var(--line);background:var(--warm);flex-shrink:0}
+.inner-tab{flex:1;padding:7px 10px;border:none;background:transparent;font-family:'DM Sans',sans-serif;font-size:.76rem;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;text-align:center}
+.inner-tab.active{color:var(--violet);border-bottom-color:var(--violet);background:var(--paper)}
+.tab-content{display:none;flex-direction:column;flex:1;min-height:0;overflow:hidden}
+.tab-content.active{display:flex}
+
+.section-head{padding:.7rem 1.2rem;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;background:var(--warm);flex-shrink:0}
+.section-label{font-size:.66rem;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.story-strip-wrap{padding:1rem 1.2rem;border-bottom:1.5px solid var(--line);background:var(--paper);flex-shrink:0}
+.strip-label{font-size:.7rem;color:var(--muted);margin-bottom:.5rem;font-style:italic}
+.story-strip{display:flex;align-items:center;gap:4px;min-height:60px;flex-wrap:wrap}
+.story-beat{position:relative;width:52px;height:52px;background:var(--warm);border:1.5px solid var(--line);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;cursor:default;user-select:none}
+.story-beat:hover .remove-beat{opacity:1}
+.remove-beat{position:absolute;top:-6px;right:-6px;width:16px;height:16px;background:var(--rust);color:#fff;border-radius:50%;font-size:.6rem;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0;transition:opacity .15s;border:1.5px solid var(--paper)}
+.arrow-beat{color:var(--line);font-size:.8rem;padding:0 1px}
+.beat-empty{width:52px;height:52px;border:1.5px dashed var(--line);border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--line);font-size:1.2rem;cursor:pointer}
+.beat-empty:hover{border-color:var(--violet);color:var(--violet)}
+.picker-wrap{flex:1;min-height:0;overflow-y:auto;padding:.8rem 1.2rem}
+.picker-search{width:100%;background:var(--warm);border:1.5px solid var(--line);border-radius:8px;padding:.4rem .8rem;font-family:'DM Sans',sans-serif;font-size:.85rem;color:var(--text);outline:none;margin-bottom:.8rem}
+.picker-search:focus{border-color:var(--violet)}
+.picker-cat{margin-bottom:.8rem}
+.cat-name{font-size:.62rem;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:.4rem;cursor:pointer;display:flex;align-items:center;justify-content:space-between;user-select:none;padding:2px 0}
+.cat-name:hover{color:var(--violet)}
+.cat-chevron{font-size:.5rem;transition:transform .2s;color:var(--line)}
+.picker-cat.collapsed .emoji-row{display:none}
+.picker-cat.collapsed .cat-chevron{transform:rotate(-90deg)}
+.emoji-row{display:flex;flex-wrap:wrap;gap:3px}
+.ep{width:34px;height:34px;border-radius:6px;background:var(--warm);border:1px solid transparent;display:flex;align-items:center;justify-content:center;font-size:1.15rem;cursor:pointer;transition:all .12s}
+.ep:hover{background:#fff;border-color:var(--violet);transform:scale(1.15)}
+.strip-actions{display:flex;gap:6px}
+.sm-btn{background:transparent;border:1px solid var(--line);border-radius:6px;padding:2px 8px;font-family:'DM Sans',sans-serif;font-size:.7rem;color:var(--muted);cursor:pointer}
+.sm-btn:hover{color:var(--text);border-color:var(--text)}
+.gen-bar{padding:.7rem 1.2rem;border-top:1.5px solid var(--line);background:var(--paper);display:flex;gap:8px;align-items:center;flex-shrink:0}
+.style-select{flex:1;min-width:0;background:var(--warm);border:1.5px solid var(--line);border-radius:8px;padding:.45rem .5rem;font-family:'DM Sans',sans-serif;font-size:.8rem;color:var(--text);outline:none;cursor:pointer}
+.gen-btn{padding:.5rem 1rem;background:var(--ink);color:var(--paper);border:none;border-radius:8px;font-family:'Dela Gothic One',sans-serif;font-size:.82rem;cursor:pointer;transition:all .2s;white-space:nowrap;flex-shrink:0}
+.gen-btn:hover{background:var(--violet)}
+.gen-btn:disabled{opacity:.4;cursor:not-allowed}
+.examples-bar{padding:.5rem 1.2rem;border-bottom:1px solid var(--line);display:flex;gap:5px;flex-wrap:wrap;align-items:center;background:var(--warm);flex-shrink:0;overflow:hidden}
+.ex-label{font-size:.65rem;color:var(--muted);margin-right:3px;letter-spacing:.05em;text-transform:uppercase}
+.ex-chip{background:var(--paper);border:1.5px solid var(--line);border-radius:20px;padding:2px 10px;font-size:.72rem;color:var(--muted);cursor:pointer;white-space:nowrap;flex-shrink:0}
+.ex-chip:hover{border-color:var(--violet);color:var(--violet)}
+
+.resizer{width:5px;background:var(--line);cursor:col-resize;flex-shrink:0;transition:background .15s;z-index:10}
+.resizer:hover,.resizer.dragging{background:var(--violet)}
+
+.output{display:flex;flex-direction:column;overflow:hidden;flex:1;min-width:0;background:var(--render-bg);position:relative}
+.output-head{padding:.7rem 1.2rem;border-bottom:1px solid rgba(0,0,0,.08);display:flex;align-items:center;justify-content:space-between;background:var(--render-head);flex-shrink:0}
+.output-label{font-size:.66rem;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--render-txt)}
+.out-actions{display:flex;gap:6px}
+.out-btn{background:rgba(0,0,0,.06);border:1px solid rgba(0,0,0,.1);border-radius:6px;padding:3px 10px;font-family:'DM Sans',sans-serif;font-size:.7rem;color:var(--render-txt);cursor:pointer}
+[data-theme="dark"] .out-btn{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.12)}
+.out-btn:hover{color:var(--ink);background:rgba(128,128,128,.15)}
+.scene-wrap{flex:1;display:flex;flex-direction:column;position:relative;overflow:hidden}
+.scene-frame{flex:1;width:100%;border:none;background:transparent}
+.placeholder,.loader-view{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;color:var(--render-txt);padding:2rem;text-align:center}
+.ph-art{font-size:3rem;opacity:.4}
+.ph-text{font-size:.82rem;line-height:1.6;max-width:260px;color:var(--render-txt);font-style:italic}
+.pulse-ring{width:48px;height:48px;border-radius:50%;border:2px solid var(--violet);border-top-color:var(--violet-l);animation:spin 1s linear infinite;opacity:.7}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loader-caption{font-size:.8rem;color:var(--render-txt);font-style:italic}
+
+/* RENDER TAB */
+.render-scroll{flex:1;overflow-y:auto;background:var(--render-head);color:var(--text);scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+.rp-section{border-bottom:1px solid var(--render-border)}
+.rp-section-head{padding:.6rem 1rem;display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none}
+.rp-section-head:hover{background:rgba(128,128,128,.08)}
+.rp-section-title{font-size:.7rem;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--render-txt);display:flex;align-items:center;gap:5px}
+.rp-chevron{font-size:.55rem;color:var(--render-txt2);transition:transform .2s}
+.rp-section.collapsed .rp-chevron{transform:rotate(-90deg)}
+.rp-section.collapsed .rp-section-body{display:none}
+.rp-section-body{padding:0 1rem .7rem;display:flex;flex-direction:column;gap:8px}
+.rp-row{display:flex;align-items:center;gap:6px}
+.rp-label{font-size:.68rem;color:var(--render-txt);min-width:58px;flex-shrink:0}
+.rp-color{width:24px;height:24px;border:2px solid var(--render-border);border-radius:5px;cursor:pointer;background:none;padding:0;overflow:hidden}
+.rp-color::-webkit-color-swatch-wrapper{padding:0}
+.rp-color::-webkit-color-swatch{border:none;border-radius:3px}
+.rp-range{flex:1;height:4px;-webkit-appearance:none;appearance:none;background:rgba(128,128,128,.2);border-radius:4px;outline:none}
+.rp-range::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--violet-l);cursor:pointer;border:2px solid var(--deep)}
+.rp-val{font-size:.64rem;color:var(--render-txt);min-width:28px;text-align:right;font-variant-numeric:tabular-nums}
+.gm-list{display:flex;flex-direction:column;gap:5px}
+.gm-card{background:rgba(128,128,128,.06);border:1px solid var(--render-border);border-radius:7px;padding:7px 9px;display:flex;flex-direction:column;gap:5px}
+.gm-card.on{border-color:var(--violet)}
+.gm-preview{height:14px;border-radius:3px;flex:1}
+.gm-btn{width:16px;height:16px;border-radius:3px;border:1px solid var(--render-border);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.5rem;color:var(--render-txt2);flex-shrink:0}
+.gm-btn:hover{background:rgba(255,255,255,.1)}
+.gm-btn.on{background:var(--violet);border-color:var(--violet);color:#fff}
+.gm-add{width:100%;padding:5px;border:1.5px dashed var(--render-border);border-radius:7px;background:transparent;color:var(--render-txt2);font-family:'DM Sans',sans-serif;font-size:.7rem;cursor:pointer;text-align:center}
+.gm-add:hover{border-color:var(--violet);color:var(--violet-l)}
+.gm-colors{display:flex;gap:3px;margin-top:3px}
+.gm-clr{width:22px;height:22px;border:1.5px solid var(--render-border);border-radius:4px;cursor:pointer;padding:0;background:none;overflow:hidden}
+.gm-clr::-webkit-color-swatch-wrapper{padding:0}
+.gm-clr::-webkit-color-swatch{border:none;border-radius:2px}
+.rp-rst{width:16px;height:16px;border-radius:3px;border:1px solid var(--render-border);background:transparent;color:var(--render-txt2);font-size:.55rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:0}
+.rp-rst:hover{background:var(--rust);color:#fff;border-color:var(--rust)}
+.rp-empty{flex:1;display:flex;align-items:center;justify-content:center;padding:2rem;text-align:center;background:var(--render-head)}
+.rp-empty-text{font-size:.8rem;color:var(--render-txt);font-style:italic;line-height:1.5}
+.rp-reset{margin:8px 1rem 12px;padding:5px 10px;border:1px solid var(--render-border);border-radius:6px;background:rgba(128,128,128,.06);color:var(--render-txt);font-family:'DM Sans',sans-serif;font-size:.7rem;cursor:pointer;text-align:center}
+.rp-reset:hover{background:var(--rust);border-color:var(--rust);color:#fff}
+
+
+.filter-overlay{position:absolute;top:0;left:0;right:0;bottom:0;pointer-events:none;z-index:7}
+.filter-grain{opacity:0}
+.filter-scanlines{background:repeating-linear-gradient(0deg,rgba(0,0,0,.06) 0px,rgba(0,0,0,.06) 1px,transparent 1px,transparent 3px);opacity:0}
+.grad-overlay{position:absolute;top:0;left:0;right:0;bottom:0;pointer-events:none;z-index:5;opacity:0}
+.vig-overlay{position:absolute;top:0;left:0;right:0;bottom:0;pointer-events:none;z-index:6;opacity:0}
+
+.obj-ctx{display:none;position:absolute;z-index:1000;background:var(--render-head);border:1px solid var(--render-border);right:8px;top:50px;left:auto;border-radius:10px;padding:10px;min-width:240px;max-width:280px;box-shadow:0 10px 35px rgba(0,0,0,.5);color:#d4d0c8}
+.obj-ctx.visible{display:block}
+.obj-ctx-head{display:flex;align-items:center;justify-content:space-between;padding-bottom:6px;border-bottom:1px solid var(--render-border);margin-bottom:8px}
+.obj-ctx-name{font-size:.74rem;font-weight:500;color:var(--render-txt)}
+.obj-ctx-x{width:18px;height:18px;border-radius:50%;background:rgba(128,128,128,.1);border:none;color:var(--render-txt);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.6rem}
+.obj-sec{margin-bottom:8px}
+.obj-lbl{font-size:.6rem;letter-spacing:.08em;text-transform:uppercase;color:var(--render-txt2);margin-bottom:5px}
+.tex-grid{display:flex;flex-wrap:wrap;gap:3px}
+.tex-btn{padding:2px 7px;border-radius:4px;border:1px solid var(--render-border);background:rgba(128,128,128,.06);color:var(--render-txt);font-family:'DM Sans',sans-serif;font-size:.62rem;cursor:pointer}
+.tex-btn:hover,.tex-btn.active{background:var(--violet);border-color:var(--violet);color:#fff}
+
+@media(max-width:780px){
+  .header{padding:.5rem .8rem;flex-wrap:wrap;gap:6px}
+  .logo{font-size:1.1rem}
+  .subtitle{display:none}
+  .mode-btn{padding:4px 12px;font-size:.72rem}
+  .workspace{flex-direction:column;overflow-y:auto;overflow-x:hidden}
+  .left-panel{width:100%!important;max-width:100%!important;min-width:100%!important;max-height:none!important;flex-shrink:0;height:auto!important;overflow:visible}
+  .tab-content.active{display:flex;max-height:none;overflow:visible}
+  .picker-wrap{max-height:35vh;overflow-y:auto}
+  .resizer{display:none}
+  .output{min-height:50vh;flex-shrink:0}
+  .scene-wrap{min-height:45vh}
+  .gen-bar{flex-wrap:wrap}
+  .gen-btn{width:100%}
+  .story-strip-wrap{padding:.7rem .8rem}
+  .story-beat{width:44px;height:44px;font-size:1.2rem}
+  .beat-empty{width:44px;height:44px}
+  .ep{width:30px;height:30px;font-size:1rem}
+  .examples-bar{padding:.4rem .8rem}
+  .section-head{padding:.5rem .8rem}
+  .inner-tab{padding:6px 8px;font-size:.72rem}
+  .obj-ctx{position:fixed!important;left:8px!important;right:8px!important;top:auto!important;bottom:8px!important;max-width:none!important;min-width:0!important;max-height:60vh;overflow-y:auto;border-radius:14px}
+  .rp-section-body{padding:0 .8rem .6rem}
+  .render-scroll{max-height:50vh}
+}
+</style>
+</head>
+<body>
+<!-- Верхняя строка действий: режим сцены, качество, тема и настройки API -->
+<div class="header">
+  <div><div class="logo">Emoji<span>Visualizer</span></div><div class="subtitle">Штучки, дрючки и закарючки</div></div>
+  <div style="display:flex;align-items:center;gap:8px">
+    <div class="mode-switch">
+      <button class="mode-btn active" data-action="mode3d">◈ 3D</button>
+      <button class="mode-btn" data-action="mode2d">✦ 2D</button>
+    </div>
+    <select id="qualitySelect" data-action="quality" style="background:var(--warm);border:1.5px solid var(--line);border-radius:8px;padding:3px 8px;font-family:'DM Sans',sans-serif;font-size:.7rem;color:var(--muted);cursor:pointer" title="Качество рендера"><option value="high" selected>HD</option><option value="med">Норм</option><option value="low">Лёгкий</option></select>
+    <button class="theme-toggle" data-action="toggleTheme" title="Тема">
+      <span class="ico-moon">🌙</span>
+      <span class="ico-sun">☀</span>
+      <div class="thumb"></div>
+    </button>
+    <button data-action="loadScene" style="background:var(--warm);border:1.5px solid var(--line);border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:.9rem;display:flex;align-items:center;justify-content:center" title="Загрузить сцену">📂</button>
+    <input type="file" id="sceneFileInput" accept=".html" style="display:none">
+    <button data-action="openSettings" style="background:var(--warm);border:1.5px solid var(--line);border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:.9rem;display:flex;align-items:center;justify-content:center" title="API настройки">🔑</button>
+  </div>
+</div>
+<!-- Модальное окно подключения AI-провайдера -->
+<div id="settingsModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);align-items:center;justify-content:center">
+  <div style="background:var(--deep);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:20px;max-width:400px;width:90%;color:#d4d0c8;box-shadow:0 20px 60px rgba(0,0,0,.5)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <span style="font-size:.85rem;font-weight:500;color:rgba(255,255,255,.7)">🔑 API Настройки</span>
+      <button data-action="closeSettings" style="background:rgba(255,255,255,.06);border:none;border-radius:50%;width:24px;height:24px;color:rgba(255,255,255,.4);cursor:pointer;font-size:.7rem">✕</button>
+    </div>
+    <div style="margin-bottom:12px">
+      <div style="font-size:.68rem;color:rgba(255,255,255,.35);margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em">Провайдер</div>
+      <select id="apiProvider" style="width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:8px;color:#d4d0c8;font-family:'DM Sans',sans-serif;font-size:.82rem">
+        <option value="claude_ai">Claude.ai (без ключа, только в артифакте)</option>
+        <option value="gemini">Gemini (бесплатный ключ)</option>
+        <option value="openrouter">OpenRouter</option>
+        <option value="custom">Кастомный OpenAI-совместимый</option>
+      </select>
+    </div>
+    <div id="apiKeyWrap" style="margin-bottom:12px;display:none">
+      <div style="font-size:.68rem;color:rgba(255,255,255,.35);margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em">API Ключ</div>
+      <input type="password" id="apiKey" placeholder="sk-or-... или sk-ant-..." style="width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:8px;color:#d4d0c8;font-family:'DM Sans',sans-serif;font-size:.82rem">
+    </div>
+    <div id="customUrlWrap" style="margin-bottom:12px;display:none">
+      <div style="font-size:.68rem;color:rgba(255,255,255,.35);margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em">Endpoint URL</div>
+      <input type="text" id="customUrl" placeholder="https://api.example.com/v1/chat/completions" style="width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:8px;color:#d4d0c8;font-family:'DM Sans',sans-serif;font-size:.82rem">
+    </div>
+    <div id="modelWrap" style="margin-bottom:14px;display:none">
+      <div style="font-size:.68rem;color:rgba(255,255,255,.35);margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em">Модель</div>
+      <input type="text" id="apiModel" value="anthropic/claude-sonnet-4-20250514" style="width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:8px;color:#d4d0c8;font-family:'DM Sans',sans-serif;font-size:.82rem">
+    </div>
+    <div style="font-size:.65rem;color:rgba(255,255,255,.2);line-height:1.4;margin-bottom:14px" id="apiHint">Работает внутри Claude.ai без ключа. Для автономного использования выберите OpenRouter.</div>
+    <button data-action="saveSettings" style="width:100%;padding:8px;background:var(--violet);border:none;border-radius:8px;color:#fff;font-family:'DM Sans',sans-serif;font-size:.82rem;font-weight:500;cursor:pointer">Сохранить</button>
+  </div>
+</div>
+<div class="workspace">
+  <div class="left-panel" id="leftPanel">
+    <div class="inner-tabs">
+      <button class="inner-tab active" data-action="tabStory">🎭 Сюжет</button>
+      <button class="inner-tab" data-action="tabRender">⚙ Рендер</button>
+    </div>
+    <div class="tab-content active" id="tcStory">
+      <div class="examples-bar"><span class="ex-label">Примеры</span><span id="exChips"></span></div>
+      <div class="story-strip-wrap">
+        <div class="strip-label">Сюжет — кликай эмодзи ↓</div>
+        <div class="story-strip" id="strip"></div>
+        <div style="display:flex;justify-content:flex-end;margin-top:6px"><div class="strip-actions"><button class="sm-btn" data-action="undo">↩</button><button class="sm-btn" data-action="clear">✕</button></div></div>
+      </div>
+      <div class="section-head"><span class="section-label">Эмодзи</span><input class="picker-search" id="search" placeholder="поиск…" style="width:120px;margin:0;padding:.25rem .6rem"></div>
+      <div class="picker-wrap" id="picker"></div>
+      <div class="gen-bar">
+        <select class="style-select" id="styleSelect"><option value="cinematic">🎬 Кинематограф</option><option value="anime">🌸 Аниме</option><option value="watercolor">🎨 Акварель</option><option value="pixelart">👾 Пиксель-арт</option><option value="lowpoly">🔺 Low-poly</option><option value="realistic">📷 Реализм</option><option value="surreal">🌀 Сюрреализм</option><option value="chrometype">⛓ Chrometype</option><option value="solarpunk">🔮 Solarpunk</option><option value="y2k">💿 Y2K</option><option value="webcore">🕸 Webcore</option><option value="dreamcore">👁 Dreamcore</option><option value="glass">🫧 Glassmorphism</option><option value="void">🌑 Void</option><option value="candy">🍬 Candy</option></select>
+        <button class="gen-btn" id="genBtn" data-action="generate">Создать →</button><button class="gen-btn" id="addBtn" data-action="addToScene" style="display:none;background:var(--violet);font-size:.72rem;padding:6px 12px" title="Добавить выбранные эмодзи в текущую сцену">＋ В сцену</button>
+      </div>
+    </div>
+    <div class="tab-content" id="tcRender">
+      <div class="rp-empty" id="rpEmpty"><div class="rp-empty-text">Сгенерируйте сцену<br>на вкладке «Сюжет»</div></div>
+      
+      <div class="render-scroll" id="rpCtrl" style="display:none">
+        <div class="rp-section" id="secL"><div class="rp-section-head" data-action="toggle" data-sec="secL"><span class="rp-section-title">💡 Освещение</span><span class="rp-chevron">▼</span></div><div class="rp-section-body">
+          <div class="rp-row"><span class="rp-label">Направл.</span><input type="color" class="rp-color" data-light="dirC" value="#ffeedd"><input type="range" class="rp-range" data-light="dirI" min="0" max="10" step="0.1" value="2.0"><span class="rp-val">2.00</span><button class="rp-rst" data-rst-light="dirC:#ffeedd,dirI:2.0" title="Сброс">↺</button></div>
+          <div id="pointLightsWrap"></div>
+          <button class="gm-add" data-action="addPointLight">＋ Добавить Point Light</button>
+          <div class="rp-row"><span class="rp-label">Поз. X</span><input type="range" class="rp-range" data-light="dirX" min="-20" max="20" step="0.5" value="5"><span class="rp-val">5.0</span><button class="rp-rst" data-rst-light="dirX:5" title="Сброс">↺</button></div>
+          <div class="rp-row"><span class="rp-label">Поз. Y</span><input type="range" class="rp-range" data-light="dirY" min="-20" max="20" step="0.5" value="10"><span class="rp-val">10.0</span><button class="rp-rst" data-rst-light="dirY:10" title="Сброс">↺</button></div>
+          <div class="rp-row"><span class="rp-label">Поз. Z</span><input type="range" class="rp-range" data-light="dirZ" min="-20" max="20" step="0.5" value="5"><span class="rp-val">5.0</span><button class="rp-rst" data-rst-light="dirZ:5" title="Сброс">↺</button></div>
+          <div class="rp-row"><span class="rp-label">Фон</span><input type="color" class="rp-color" data-light="bgC" value="#04080f"></div>
+          <div class="rp-row"><span class="rp-label">Отражение</span><input type="range" class="rp-range" data-light="envI" min="0" max="5" step="0.1" value="1"><span class="rp-val">1.0</span><button class="rp-rst" data-rst-light="envI:1" title="Сброс">↺</button></div>
+          <div class="rp-row"><span class="rp-label">Экспоз.</span><input type="range" class="rp-range" data-light="expo" min="0.1" max="3" step="0.05" value="1"><span class="rp-val">1.00</span><button class="rp-rst" data-rst-light="expo:1" title="Сброс">↺</button></div>
+        </div></div>
+        <div class="rp-section" id="secC"><div class="rp-section-head" data-action="toggle" data-sec="secC"><span class="rp-section-title">🎨 Цветокоррекция</span><span class="rp-chevron">▼</span></div><div class="rp-section-body">
+          <div class="rp-row"><span class="rp-label">Яркость</span><input type="range" class="rp-range" data-cc="bright" min="0.2" max="3" step="0.05" value="1"><span class="rp-val">1.00</span><button class="rp-rst" data-rst-cc="bright:1" title="Сброс">↺</button></div>
+          <div class="rp-row"><span class="rp-label">Контраст</span><input type="range" class="rp-range" data-cc="contrast" min="0.2" max="3" step="0.05" value="1"><span class="rp-val">1.00</span><button class="rp-rst" data-rst-cc="contrast:1" title="Сброс">↺</button></div>
+          <div class="rp-row"><span class="rp-label">Насыщ.</span><input type="range" class="rp-range" data-cc="sat" min="0" max="3" step="0.05" value="1"><span class="rp-val">1.00</span><button class="rp-rst" data-rst-cc="sat:1" title="Сброс">↺</button></div>
+          <div class="rp-row"><span class="rp-label">Hue</span><input type="range" class="rp-range" data-cc="hue" min="0" max="360" step="1" value="0"><span class="rp-val">0°</span><button class="rp-rst" data-rst-cc="hue:0" title="Сброс">↺</button></div>
+          <div class="rp-row"><span class="rp-label">Сепия</span><input type="range" class="rp-range" data-cc="sepia" min="0" max="1" step="0.05" value="0"><span class="rp-val">0.00</span><button class="rp-rst" data-rst-cc="sepia:0" title="Сброс">↺</button></div>
+          <div class="rp-row"><span class="rp-label">Виньетка</span><input type="range" class="rp-range" data-cc="vig" min="0" max="1" step="0.05" value="0"><span class="rp-val">0.00</span><button class="rp-rst" data-rst-cc="vig:0" title="Сброс">↺</button></div>
+        </div></div>
+                <div class="rp-section" id="secF"><div class="rp-section-head" data-action="toggle" data-sec="secF"><span class="rp-section-title">✨ Эффекты</span><span class="rp-chevron">▼</span></div><div class="rp-section-body">
+          <div class="rp-row"><span class="rp-label">Зерно</span><input type="range" class="rp-range" data-fx="grain" min="0" max="1" step="0.05" value="0"><span class="rp-val">0.00</span><button class="rp-rst" data-rst-fx="grain:0" title="Сброс">↺</button></div>
+          <div class="rp-row"><span class="rp-label">Scanlines</span><input type="range" class="rp-range" data-fx="scanlines" min="0" max="1" step="0.05" value="0"><span class="rp-val">0.00</span><button class="rp-rst" data-rst-fx="scanlines:0" title="Сброс">↺</button></div>
+          <div class="rp-row"><span class="rp-label">Размытие</span><input type="range" class="rp-range" data-fx="blur" min="0" max="10" step="0.5" value="0"><span class="rp-val">0.0</span><button class="rp-rst" data-rst-fx="blur:0" title="Сброс">↺</button></div>
+          <div class="rp-row"><span class="rp-label">Инверсия</span><input type="range" class="rp-range" data-fx="invert" min="0" max="1" step="0.05" value="0"><span class="rp-val">0.00</span><button class="rp-rst" data-rst-fx="invert:0" title="Сброс">↺</button></div>
+          <div class="rp-row"><span class="rp-label">Chrome</span><input type="range" class="rp-range" data-fx="chrome" min="0" max="1" step="0.05" value="0"><span class="rp-val">0.00</span><button class="rp-rst" data-rst-fx="chrome:0" title="Сброс">↺</button></div>
+          <div class="rp-row"><span class="rp-label">Glass</span><input type="range" class="rp-range" data-fx="glass" min="0" max="1" step="0.05" value="0"><span class="rp-val">0.00</span><button class="rp-rst" data-rst-fx="glass:0" title="Сброс">↺</button></div>
+
+        </div></div>
+        <div class="rp-section" id="secG"><div class="rp-section-head" data-action="toggle" data-sec="secG"><span class="rp-section-title">🌈 Карты градиента</span><span class="rp-chevron">▼</span></div><div class="rp-section-body"><div id="gmList" class="gm-list"></div><button class="gm-add" data-action="addGM">＋ Добавить градиент</button></div></div>
+        <div class="rp-section" id="secO"><div class="rp-section-head" data-action="toggle" data-sec="secO"><span class="rp-section-title">🎯 Объекты</span><span class="rp-chevron">▼</span></div><div class="rp-section-body"><div style="font-size:.7rem;color:var(--render-txt2);font-style:italic">Кликните объект в сцене или ☑ несколько</div><div id="objList"></div><div style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap"><button class="tex-btn" data-action="batchRotX" title="Повернуть выбранные на 90° по X">☑ ↻X</button><button class="tex-btn" data-action="batchRotZ" title="Повернуть на 90° по Z">☑ ↻Z</button><button class="tex-btn" data-action="batchHide" title="Скрыть выбранные">☑ 🚫</button><button class="tex-btn" data-action="batchShow" title="Показать выбранные">☑ 👁</button></div></div></div>
+        <button class="rp-reset" data-action="resetAll">↺ Сбросить</button>
+      </div>
+    </div>
+  </div>
+  <div class="resizer" id="resizer"></div>
+  <div class="output">
+    <div class="output-head"><span class="output-label" id="outLabel">Предпросмотр</span><div class="out-actions"><button class="out-btn" id="camLockBtn" style="display:none" data-action="toggleCamLock">🔓 Камера</button><button class="out-btn" id="copyBtn" style="display:none" data-action="copy">⎘ HTML</button><button class="out-btn" id="fsBtn" style="display:none" data-action="fs">⤓ HTML</button><select id="camAnim" style="display:none;background:var(--render-head);border:1px solid var(--render-border);border-radius:6px;padding:3px 6px;font-family:'DM Sans',sans-serif;font-size:.65rem;color:var(--render-txt)"><option value="none">Без анимации</option><option value="orbit">🔄 Орбита</option><option value="slow">🐌 Медл. орбита</option><option value="zoomin">🔍 Наезд</option><option value="rise">⬆ Подъём</option><option value="spiral">🌀 Спираль</option></select><button class="out-btn" id="recBtn" style="display:none" data-action="startRec">⏺ Запись</button></div></div>
+    <div class="scene-wrap" id="sceneWrap">
+      <div class="placeholder" id="phView"><div class="ph-art">🎬</div><div class="ph-text">Составь сюжет и нажми «Создать»</div></div>
+      <div class="loader-view" id="loader" style="display:none"><div class="pulse-ring"></div><div class="loader-caption" id="loadCap">Интерпретирую…</div><div id="loadStrip" style="font-size:1.3rem;margin-top:.5rem"></div></div>
+      <iframe class="scene-frame" id="sceneFrame" style="display:none"></iframe>
+      <canvas id="gradC" class="grad-overlay"></canvas>
+      <canvas id="grainOvl" class="filter-overlay filter-grain"></canvas>
+      <div id="scanOvl" class="filter-overlay filter-scanlines"></div>
+      <canvas id="vigC" class="vig-overlay"></canvas>
+    </div>
+    <div class="obj-ctx" id="objCtx">
+      <div class="obj-ctx-head"><span class="obj-ctx-name" id="ctxName">Объект</span><button class="obj-ctx-x" data-action="closeCtx">✕</button></div>
+      <div class="obj-sec"><div class="obj-lbl">Анимация</div><div class="tex-grid" id="animG"></div></div>
+      <div class="obj-sec"><div class="obj-lbl">Гизмо</div><div class="rp-row"><button class="tex-btn" data-action="gizmoRotate" style="flex:1;text-align:center">↻ Вращать</button><button class="tex-btn" data-action="gizmoMove" style="flex:1;text-align:center">✥ Двигать</button><button class="tex-btn" data-action="gizmoScale" style="flex:1;text-align:center">⤡ Масштаб</button></div></div>
+      
+      <div class="obj-sec"><div class="obj-lbl">Материал</div>
+        <div class="rp-row"><span class="rp-label" style="min-width:45px">Цвет</span><input type="color" class="rp-color" data-obj="color" value="#ffffff"></div>
+        <div class="rp-row" style="margin-top:5px"><span class="rp-label" style="min-width:45px">Rough</span><input type="range" class="rp-range" data-obj="rough" min="0" max="1" step="0.05" value="0.5"><span class="rp-val">0.50</span></div>
+        <div class="rp-row" style="margin-top:5px"><span class="rp-label" style="min-width:45px">Metal</span><input type="range" class="rp-range" data-obj="metal" min="0" max="1" step="0.05" value="0"><span class="rp-val">0.00</span></div>
+        <div class="rp-row" style="margin-top:5px"><span class="rp-label" style="min-width:45px">Opacity</span><input type="range" class="rp-range" data-obj="opacity" min="0" max="1" step="0.05" value="1"><span class="rp-val">1.00</span></div>
+      </div>
+      <div class="obj-sec"><div class="obj-lbl">Свечение</div><div class="rp-row"><input type="color" class="rp-color" data-obj="emClr" value="#000000"><input type="range" class="rp-range" data-obj="emInt" min="0" max="3" step="0.1" value="0"><span class="rp-val">0.00</span></div></div>
+      <div class="obj-sec"><div class="obj-lbl">Материал</div><div class="tex-grid" id="texG"></div></div>
+      <div class="obj-sec"><div class="rp-row"><button class="tex-btn" data-action="deleteObj" style="flex:1;text-align:center;background:var(--rust);color:#fff;border-color:var(--rust)">🗑 Удалить</button></div></div>
+      <div class="obj-sec"><div class="rp-row"><button class="tex-btn" data-action="toggleVis" style="flex:1;text-align:center">👁 Видим</button><button class="tex-btn" data-action="toggleWire" style="flex:1;text-align:center">◇ Wire</button></div></div>
+    </div>
+  </div>
+<script>
+var _SS={};
+_SS.cinematic={bg:"#04080f",fog:"#0a1628",fd:.018,pal:"#1a3a6b,#2d6ca8,#4da6e8,#e8c44d,#ff6b35",mt:"MeshStandardMaterial",d:"ACES tonemapping, dark blue, orange accent"};
+_SS.anime={bg:"#0d0d2b",fog:"#1a1a4d",fd:.01,pal:"#ff6eb4,#7eb8ff,#fffacd,#b8ff7e,#ff9f43",mt:"MeshPhongMaterial",d:"Anime: MeshPhongMaterial, bright saturated colors. NO white objects"};
+_SS.watercolor={bg:"#f0ebe0",fog:"#e8dfd0",fd:.008,pal:"#89b4d4,#c4a882,#8fbc8f,#d4789a,#f0c060",mt:"MeshLambertMaterial",d:"Watercolor pastel"};
+_SS.pixelart={bg:"#1a1c2c",fog:"#1a1c2c",fd:0,pal:"#5d275d,#b13e53,#ef7d57,#ffcd75,#a7f070,#38b764",mt:"MeshStandardMaterial({flatShading:true})",d:"Pixel-art: renderer.setPixelRatio(1); renderer.setSize(320,240); renderer.domElement.style.imageRendering=pixelated; renderer.domElement.style.width=100vw; renderer.domElement.style.height=100vh; ONLY BoxGeometry. flatShading:true. Pico-8 palette"};
+_SS.lowpoly={bg:"#0f1923",fog:"#1a2a3a",fd:.015,pal:"#2c5f8a,#3d8fb5,#56c9e8,#f0a030,#e05020",mt:"MeshStandardMaterial",d:"Low-poly flatShading:true"};
+_SS.realistic={bg:"#87ceeb",fog:"#c9e8f0",fd:.005,pal:"#8b6914,#228b22,#4169e1,#708090,#daa520",mt:"MeshStandardMaterial",d:"Realism with shadows"};
+_SS.surreal={bg:"#0a0015",fog:"#200030",fd:.012,pal:"#ff00ff,#00ffff,#ff8c00,#7fff00,#ff1493",mt:"MeshPhongMaterial",d:"Surreal neon"};
+_SS.chrometype={bg:"#0a0a2f",fog:"#050520",fd:.008,pal:"#c0c0c0,#4169e1,#1a1aff,#e0e0e8,#6a5acd,#ff3366",mt:"MeshStandardMaterial",d:"CHROMETYPE. ALL objects chrome: metalness:0.95, roughness:0.05. Create env map: 6 canvas blue gradients, CubeTexture, scene.environment. Forms: organic surreal - liquid chrome, wires (TubeGeometry+CatmullRomCurve3), spikes (ConeGeometry), spheres with vertex displacement, torus, rings. Silver #c0c0c0, blue #4169e1, pink accent #ff3366. Each emoji = abstract chrome sculpture"};
+_SS.solarpunk={bg:"#1a3a20",fog:"#0d2a15",fd:.012,pal:"#2d8a4e,#8fbc8f,#daa520,#f0e68c,#40e0d0,#cd853f",mt:"MeshStandardMaterial",d:"SOLARPUNK. Organic+tech. Crystals (IcosahedronGeometry metalness:0.3 roughness:0.1 color #40e0d0). Plants through metal - green spheres/cones near golden frames. Warm golden light. Vines via TubeGeometry green. Solar panels - flat BoxGeometry emissive gold. Green fog"};
+_SS.y2k={bg:"#e8e0f0",fog:"#d0c8e0",fd:.005,pal:"#ff69b4,#87ceeb,#c0c0c0,#ff1493,#00bfff,#e6e6fa",mt:"MeshPhysicalMaterial",d:"Y2K AESTHETIC. MeshPhysicalMaterial({color:цвет, clearcoat:1, clearcoatRoughness:0.02, metalness:0.15, roughness:0.1}). Добавь 5-6 декоративных элементов разного типа и размера (от 0.1 до 0.5): звёздочка, сфера, кубик, закарючка, икосаэдр. Случайные позиции, цвета из палитры. Основные объекты — гладкие глянцевые надувные"};
+_SS.webcore={bg:"#000033",fog:"#000020",fd:.015,pal:"#00ff00,#ff00ff,#00ffff,#ffff00,#ff0000,#ffffff",mt:"MeshBasicMaterial",d:"WEBCORE. MeshBasicMaterial self-lit no shadows. Neon wireframe: material.wireframe=true on some. Acid colors #00ff00 #ff00ff #00ffff. Glitch: slightly offset/duplicated objects. PlaneGeometry as floating windows. GridHelper(20,20,0x00ff00,0x003300). Objects float chaotically. Early internet Geocities aesthetic"};
+_SS.dreamcore={bg:"#e8dce0",fog:"#d8c8d0",fd:.02,pal:"#b0a0c0,#e8b0b0,#a0c0a0,#c0b0d0,#f0e0c0,#d0d0e0",mt:"MeshLambertMaterial",d:"DREAMCORE WEIRDCORE. Soft muted pastels. Dense fog density 0.02. Unreal proportions - giant objects next to tiny. Liminal space. Long shadows. Blurry and unclear. Flat planes to infinity. Simple but unsettling forms. Soft diffuse light. Faded photo colors"};
+_SS.glass={bg:"#0d0d1a",fog:"#080812",fd:.006,pal:"#a0d0ff,#f0a0d0,#a0f0d0,#d0a0f0,#f0f0ff,#80c0ff",mt:"MeshPhysicalMaterial",d:"GLASSMORPHISM. ВАЖНО: Three.js r128 НЕ поддерживает transmission. Стекло делай так: MeshPhysicalMaterial({color:цвет, opacity:0.25, transparent:true, metalness:0.1, roughness:0.05, clearcoat:1.0, clearcoatRoughness:0.02, side:THREE.DoubleSide}). Каждый объект полупрозрачный (opacity 0.15-0.35). Добавь ВНУТРЬ каждого стеклянного объекта второй меш чуть меньше с opacity:0.1 и другим цветом — это создаёт эффект глубины стекла. Обязательно: renderer.sortObjects=true. Создай envMap из 6 canvas с цветными градиентами для отражений на стекле (envMapIntensity:2). Мягкие формы: SphereGeometry, TorusGeometry, TorusKnotGeometry. Тёмный фон #0d0d1a чтобы прозрачность была видна. 3-4 ярких PointLight РАЗНЫХ цветов (#a0d0ff, #f0a0d0, #ffd700) intensity:3 для бликов и каустик на стекле. Каждый объект должен выглядеть как стеклянная скульптура — гладкий, прозрачный, с цветными бликами"};
+_SS.void={bg:"#020204",fog:"#000000",fd:.03,pal:"#ffffff,#ff0040,#0040ff,#800080,#1a1a1a",mt:"MeshStandardMaterial",d:"VOID. Near total darkness bg #020204, very dense fog. Objects barely visible, emerge from dark. ONE bright accent color (red #ff0040 or purple #800080) on one object only, rest dark grey #1a1a1a. Min 3-5 objects. Simple geometric forms. One weak directional light from side. Emissive accent: emissiveIntensity:0.3. Silence and emptiness"};
+_SS.candy={bg:"#ffe0f0",fog:"#ffd0e8",fd:.005,pal:"#ff69b4,#ff6b6b,#ffd93d,#6bcb77,#4d96ff,#9b59b6,#ff9ff3",mt:"MeshPhysicalMaterial",d:"CANDY INFLATABLE. MeshPhysicalMaterial({color:цвет, clearcoat:1, clearcoatRoughness:0.05, metalness:0, roughness:0.15}). Яркие карамельные цвета из палитры. Мягкие округлые формы: SphereGeometry для шариков, TorusGeometry для пончиков, TorusKnotGeometry для конфет. Объекты как жевательные конфеты — гладкие, глянцевые. Используй envMap (CubeTexture из розовых/жёлтых canvas) для бликов. Пастельный фон #ffe0f0. 2-3 тёплых PointLight для сочных бликов. Весёлое яркое освещение"};
+function _epInject(){
+  var ep={scene:null,camera:null,renderer:null,aL:null,dL:null,pL:null,ready:false,lastClick:null,byUUID:null,genTex:null};
+  window._ep=ep;
+  function findScene(){
+    if(typeof THREE==='undefined')return false;
+    try{if(window.scene&&window.scene.isScene)ep.scene=window.scene}catch(e){}
+    try{if(window.camera&&(window.camera.isPerspectiveCamera||window.camera.isOrthographicCamera))ep.camera=window.camera}catch(e){}
+    try{if(window.renderer&&window.renderer.domElement)ep.renderer=window.renderer}catch(e){}
+    if(!ep.scene||!ep.camera){
+      var keys;try{keys=Object.getOwnPropertyNames(window)}catch(e){keys=Object.keys(window)}
+      for(var i=0;i<keys.length;i++){try{var v=window[keys[i]];
+        if(!ep.scene&&v&&v.isScene)ep.scene=v;
+        if(!ep.camera&&v&&(v.isPerspectiveCamera||v.isOrthographicCamera))ep.camera=v;
+        if(!ep.renderer&&v&&v.domElement&&v.domElement.tagName==='CANVAS')ep.renderer=v;
+      }catch(e){}}
+    }
+    return !!(ep.scene&&ep.camera);
+  }
+  var _t=0;
+  function poll(){if(findScene()){setup();return}if(_t++<200)setTimeout(poll,100)}
+  function setup(){
+    if(ep.ready)return;ep.ready=true;
+    /* REMOVE all existing lights so our sliders control 100% of lighting */
+    /* Remove ALL AI lights — we control lighting entirely */
+    var toRemove=[];
+    ep.scene.traverse(function(o){if(o.isLight)toRemove.push(o)});
+    toRemove.forEach(function(l){if(l.parent)l.parent.remove(l)});
+    /* Add our controllable lights with good defaults */
+    ep.dL=new THREE.DirectionalLight(0xffeedd,2.5);ep.dL.position.set(5,10,5);ep.scene.add(ep.dL);
+    ep.pointLights=[];
+    /* Generate environment map from bg color for reflections */
+    ep.updateEnvMap=function(clr){
+      var sz=64,faces=[];
+      var col=clr||'#1a1a3a';
+      for(var fi=0;fi<6;fi++){
+        var cv=document.createElement('canvas');cv.width=sz;cv.height=sz;
+        var ctx=cv.getContext('2d');
+        var g=ctx.createRadialGradient(sz/2,sz/2,0,sz/2,sz/2,sz);
+        g.addColorStop(0,col);g.addColorStop(0.5,col);g.addColorStop(1,'#000');
+        ctx.fillStyle=g;ctx.fillRect(0,0,sz,sz);
+        /* subtle specular highlights */
+        ctx.fillStyle='rgba(255,255,255,0.06)';
+        ctx.beginPath();ctx.arc(sz*0.3,sz*0.3,sz*0.15,0,Math.PI*2);ctx.fill();
+        faces.push(cv);
+      }
+      var tex=new THREE.CubeTexture(faces);tex.needsUpdate=true;
+      ep.scene.environment=tex;
+    };
+    ep.updateEnvMap('#1a1a3a');
+    ep.addPointLight=function(clr,intensity,x,y,z){
+      var pl=new THREE.PointLight(new THREE.Color(clr||'#5b4fcf'),intensity||0,80);
+      pl.position.set(x||0,y||5,z||0);
+      ep.scene.add(pl);
+      ep.pointLights.push(pl);
+      return ep.pointLights.length-1;
+    };
+    ep.removePointLight=function(idx){
+      if(idx>=0&&idx<ep.pointLights.length){
+        ep.scene.remove(ep.pointLights[idx]);
+        ep.pointLights.splice(idx,1);
+      }
+    };
+    /* Ensure scene.background is a Color object */
+    if(!ep.scene.background||!ep.scene.background.isColor)ep.scene.background=new THREE.Color(0x04080f);
+    /* Remove heavy fog that makes distant objects white */
+    if(ep.scene.fog)ep.scene.fog=null;
+    /* Enable tone mapping so bright lights produce color, not white blowout */
+    if(ep.renderer){
+      ep.renderer.toneMapping=THREE.ACESFilmicToneMapping;
+      ep.renderer.toneMappingExposure=1.0;
+      ep.renderer.outputEncoding=THREE.sRGBEncoding;
+      /* Read quality from parent */
+      try{var q=window.parent.document.getElementById('qualitySelect');
+        if(q&&q.value==='low')ep.renderer.setPixelRatio(Math.min(window.devicePixelRatio,1));
+        else if(q&&q.value==='high')ep.renderer.setPixelRatio(window.devicePixelRatio);
+        else ep.renderer.setPixelRatio(Math.min(window.devicePixelRatio,1.5));
+      }catch(e){}
+    }
+    /* Upgrade MeshBasicMaterial to MeshStandardMaterial so lights affect all objects */
+    ep.scene.traverse(function(o){if(o.isMesh&&o.material&&o.material.type==='MeshBasicMaterial'){
+      var clr=o.material.color?o.material.color.clone():new THREE.Color(0xffffff);
+      o.material=new THREE.MeshStandardMaterial({color:clr,opacity:o.material.opacity,transparent:o.material.transparent,map:o.material.map,roughness:0.5,metalness:0})}});
+    var ray=new THREE.Raycaster(),mv=new THREE.Vector2(),dx=0,dy=0;
+    document.addEventListener('pointerdown',function(e){dx=e.clientX;dy=e.clientY});
+    document.addEventListener('pointerup',function(ev){
+      if(Math.abs(ev.clientX-dx)>5||Math.abs(ev.clientY-dy)>5)return;
+      if(ep._gizmoDragging)return;
+      mv.x=(ev.clientX/window.innerWidth)*2-1;mv.y=-(ev.clientY/window.innerHeight)*2+1;
+      ray.setFromCamera(mv,ep.camera);var ms=[];ep.scene.traverse(function(o){if(o.isMesh&&o.type!=='TransformControlsPlane'&&!(o.parent&&o.parent.type==='TransformControlsGizmo')&&!(o.name&&o.name.match&&o.name.match(/^[XYZE]{1,4}$/)))ms.push(o)});
+      var h=ray.intersectObjects(ms,true);
+      if(h.length){var o=h[0].object;
+        ep.lastClick={uuid:o.uuid,obj:o,name:o.name||(o.geometry?o.geometry.type.replace('BufferGeometry','').replace('Geometry',''):'Mesh'),geo:o.geometry?o.geometry.type:'',cx:ev.clientX,cy:ev.clientY,ts:Date.now()}}
+    });
+    ep.byUUID=function(u){var f=null;ep.scene.traverse(function(o){if(String(o.uuid)===String(u))f=o});return f};
+    ep.genTex=function(n){var c=document.createElement('canvas');c.width=256;c.height=256;var x=c.getContext('2d');
+      if(n==='checker'){for(var y=0;y<256;y+=32)for(var i=0;i<256;i+=32){x.fillStyle=((i/32+y/32)%2)?'#ffffff':'#222';x.fillRect(i,y,32,32)}}
+      else if(n==='stripes'){for(var j=0;j<256;j+=16){x.fillStyle=(j/16%2)?'#ddd':'#333';x.fillRect(0,j,256,16)}}
+      else if(n==='dots'){x.fillStyle='#222';x.fillRect(0,0,256,256);x.fillStyle='#aaa';for(var y2=16;y2<256;y2+=32)for(var i2=16;i2<256;i2+=32){x.beginPath();x.arc(i2,y2,6,0,Math.PI*2);x.fill()}}
+      else if(n==='noise'){var d=x.createImageData(256,256);for(var k=0;k<d.data.length;k+=4){var nv=Math.random()*255;d.data[k]=nv;d.data[k+1]=nv;d.data[k+2]=nv;d.data[k+3]=255}x.putImageData(d,0,0)}
+      else if(n==='brick'){x.fillStyle='#8b4513';x.fillRect(0,0,256,256);x.fillStyle='#a0522d';for(var r=0;r<8;r++){var off=r%2?32:0;for(var b=-1;b<5;b++)x.fillRect(off+b*64+2,r*32+2,60,28)}}
+      else if(n==='wood'){x.fillStyle='#8b6914';x.fillRect(0,0,256,256);for(var w=0;w<40;w++){x.strokeStyle='rgba(60,30,0,'+(0.1+Math.random()*.2)+')';x.lineWidth=1+Math.random()*3;x.beginPath();var yy=Math.random()*256;x.moveTo(0,yy);for(var xx=0;xx<256;xx+=20)x.lineTo(xx,yy+Math.sin(xx/30)*5+Math.random()*4);x.stroke()}}
+      var t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(2,2);return t};
+    /* Chrome environment map — gradient cubemap for reflections */
+    ep.envMap=null;
+    (function(){
+      var size=128;
+      var faces=[];
+      for(var fi=0;fi<6;fi++){
+        var cv=document.createElement('canvas');cv.width=size;cv.height=size;
+        var ctx=cv.getContext('2d');
+        var grd=ctx.createLinearGradient(0,0,fi<2?size:0,fi>=2&&fi<4?size:0);
+        var colors=[['#1a1a3a','#4a4a8a','#8a8acc','#ccccff'],['#0a0a2a','#2a2a6a','#6a6aaa','#aaaaee'],['#2a1a3a','#5a3a7a','#9a6aba','#dabafa'],['#1a2a3a','#3a5a7a','#6a9aba','#aadafa'],['#0a1a2a','#2a4a6a','#5a8aaa','#9acaea'],['#1a1a2a','#3a3a5a','#6a6a9a','#aaaada']];
+        var cs=colors[fi];
+        for(var ci=0;ci<cs.length;ci++)grd.addColorStop(ci/(cs.length-1),cs[ci]);
+        ctx.fillStyle=grd;ctx.fillRect(0,0,size,size);
+        /* Add some noise/sparkle */
+        for(var sp=0;sp<40;sp++){ctx.fillStyle='rgba(255,255,255,'+(0.1+Math.random()*0.3)+')';var sx=Math.random()*size,sy=Math.random()*size;ctx.beginPath();ctx.arc(sx,sy,0.5+Math.random()*1.5,0,Math.PI*2);ctx.fill()}
+        faces.push(cv);
+      }
+      var cubeTex=new THREE.CubeTexture(faces);
+      cubeTex.needsUpdate=true;
+      ep.envMap=cubeTex;
+    })();
+    /* Save and apply chrome */
+
+    ep._origMatsGlass={};
+    ep.setGlass=function(amount){
+      if(!ep.scene)return;
+      ep.scene.traverse(function(o){
+        if(!o.isMesh||!o.material)return;
+        if(o.type==='TransformControlsPlane'||o.parent&&o.parent.type==='TransformControlsGizmo')return;
+        var uid=o.uuid;
+        if(!ep._origMatsGlass[uid]){
+          ep._origMatsGlass[uid]={
+            opacity:o.material.opacity!=null?o.material.opacity:1,
+            transparent:!!o.material.transparent,
+            roughness:o.material.roughness!=null?o.material.roughness:0.5,
+            metalness:o.material.metalness!=null?o.material.metalness:0,
+            clearcoat:o.material.clearcoat||0,
+            side:o.material.side||0
+          };
+        }
+        var orig=ep._origMatsGlass[uid];
+        if(amount<=0){
+          o.material.opacity=orig.opacity;o.material.transparent=orig.transparent;
+          if('roughness' in o.material)o.material.roughness=orig.roughness;
+          if('metalness' in o.material)o.material.metalness=orig.metalness;
+          if('clearcoat' in o.material)o.material.clearcoat=orig.clearcoat;
+          o.material.side=orig.side;
+        } else {
+          o.material.opacity=orig.opacity*(1-amount*0.8);
+          o.material.transparent=true;
+          if('roughness' in o.material)o.material.roughness=orig.roughness*(1-amount*0.9);
+          if('metalness' in o.material)o.material.metalness=orig.metalness+(0.15-orig.metalness)*amount;
+          if('clearcoat' in o.material)o.material.clearcoat=amount;
+          o.material.side=2;/* DoubleSide */
+        }
+        o.material.needsUpdate=true;
+      });
+    };
+    ep._origMats={};
+
+    /* ═══ GIZMO — TransformControls ═══ */
+    ep.gizmo=null;ep.gizmoTarget=null;
+    var tcScript=document.createElement('script');
+    tcScript.src='https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/TransformControls.js';
+    tcScript.onload=function(){
+      if(!THREE.TransformControls)return;
+      ep.gizmo=new THREE.TransformControls(ep.camera,ep.renderer.domElement);
+      ep.gizmo.size=0.7;
+      ep._gizmoDragging=false;
+      ep.gizmo.addEventListener('dragging-changed',function(ev){
+        ep._gizmoDragging=ev.value;
+        if(ep.controls)ep.controls.enabled=!ev.value;
+      });
+      /* After each render frame, if gizmo target was moved by user,
+         force its position back (overriding animate loop's levitation) */
+      var _lastGizmoPos=null;
+      ep.gizmo.addEventListener('objectChange',function(){
+        if(ep.gizmo.object)_lastGizmoPos=ep.gizmo.object.position.clone();
+      });
+      /* Run after every frame to enforce gizmo position */
+      var _enforceRunning=false;
+      function enforceGizmo(){
+        if(!ep._gizmoDragging){_enforceRunning=false;return}
+        requestAnimationFrame(enforceGizmo);
+        if(_lastGizmoPos&&ep.gizmo.object){
+          ep.gizmo.object.position.copy(_lastGizmoPos);
+        }
+      }
+      ep.gizmo.addEventListener('dragging-changed',function(ev2){
+        if(ev2.value&&!_enforceRunning){_enforceRunning=true;enforceGizmo()}
+      });
+      ep.scene.add(ep.gizmo);
+    };
+    document.head.appendChild(tcScript);
+    /* Find OrbitControls — robust search */
+    ep.controls=null;
+    function findControls(){
+      /* Strategy 1: window properties */
+      try{var keys=Object.getOwnPropertyNames(window);
+        for(var k=0;k<keys.length;k++){try{var v=window[keys[k]];
+          if(v&&v.enableRotate!==undefined&&v.enableZoom!==undefined&&v.target){ep.controls=v;return}
+        }catch(e){}}
+      }catch(e){}
+      /* Strategy 2: check common names */
+      try{if(window.controls&&window.controls.enableRotate!==undefined){ep.controls=window.controls;return}}catch(e){}
+      try{if(window.orbitControls&&window.orbitControls.enableRotate!==undefined){ep.controls=window.orbitControls;return}}catch(e){}
+    }
+    findControls();
+    /* Retry if not found (controls may init after scene) */
+    if(!ep.controls)setTimeout(findControls,500);
+    if(!ep.controls)setTimeout(findControls,1500);
+    ep.attachGizmo=function(uuid,mode){
+      if(!ep.gizmo)return;
+      var obj=ep.byUUID(uuid);if(!obj)return;
+      /* Walk up to root group */
+      var target=obj;while(target.parent&&target.parent.type!=='Scene'&&target.parent.parent)target=target.parent;
+      ep.gizmo.attach(target);
+      ep.gizmo.mode=mode||'rotate';
+      ep.gizmoTarget=uuid;
+    };
+    ep.detachGizmo=function(){
+      if(ep.gizmo)ep.gizmo.detach();
+      ep.gizmoTarget=null;
+    };
+    ep.setGizmoMode=function(mode){if(ep.gizmo)ep.gizmo.mode=mode};
+
+    ep.applyMaterial=function(o,preset){
+      if(!o||!o.material)return;
+      var clr=o.material.color?o.material.color.clone():new THREE.Color(0xffffff);
+      var mat=o.material;
+      /* Reset to base first */
+      mat.map=null;
+      if('metalness' in mat)mat.metalness=0;
+      if('roughness' in mat)mat.roughness=0.5;
+      if('clearcoat' in mat)mat.clearcoat=0;
+      mat.transparent=false;mat.opacity=1;mat.side=0;
+      if('emissive' in mat){mat.emissive.set(0x000000);mat.emissiveIntensity=0}
+      mat.wireframe=false;
+      /* Apply preset */
+      if(preset==='chrome'){
+        if('metalness' in mat)mat.metalness=0.95;
+        if('roughness' in mat)mat.roughness=0.05;
+        mat.envMap=ep.envMap;mat.envMapIntensity=2.5;
+      } else if(preset==='glass'){
+        mat.transparent=true;mat.opacity=0.25;
+        if('roughness' in mat)mat.roughness=0.05;
+        if('clearcoat' in mat)mat.clearcoat=1;
+        mat.side=2;
+      } else if(preset==='matte'){
+        if('metalness' in mat)mat.metalness=0;
+        if('roughness' in mat)mat.roughness=0.9;
+      } else if(preset==='glossy'){
+        if('metalness' in mat)mat.metalness=0.1;
+        if('roughness' in mat)mat.roughness=0.1;
+        if('clearcoat' in mat)mat.clearcoat=1;
+      } else if(preset==='emissive'){
+        if('emissive' in mat){mat.emissive.copy(clr);mat.emissiveIntensity=1.5}
+      } else if(preset==='neon'){
+        if('emissive' in mat){mat.emissive.copy(clr);mat.emissiveIntensity=3}
+        if('metalness' in mat)mat.metalness=0;
+        if('roughness' in mat)mat.roughness=0.3;
+      } else if(preset==='holographic'){
+        if('metalness' in mat)mat.metalness=0.8;
+        if('roughness' in mat)mat.roughness=0.15;
+        mat.envMap=ep.envMap;mat.envMapIntensity=3;
+        mat.transparent=true;mat.opacity=0.7;
+        mat.side=2;
+      } else if(preset==='velvet'){
+        if('metalness' in mat)mat.metalness=0;
+        if('roughness' in mat)mat.roughness=1;
+        if('emissive' in mat){mat.emissive.copy(clr);mat.emissiveIntensity=0.15}
+      } else if(preset==='ceramic'){
+        if('metalness' in mat)mat.metalness=0.05;
+        if('roughness' in mat)mat.roughness=0.3;
+        if('clearcoat' in mat){mat.clearcoat=0.8;mat.clearcoatRoughness=0.1}
+      }
+      /* default = just reset, already done above */
+      mat.needsUpdate=true;
+    };
+    ep._chromeClones=[];
+    ep.setChrome=function(amount){
+      if(!ep.scene)return;
+      /* Collect meshes first to avoid traverse mutation */
+      var meshes=[];
+      ep.scene.traverse(function(o){
+        if(!o.isMesh||!o.material)return;
+        if(o._isChromeCopy)return;
+        if(o.type==='TransformControlsPlane'||o.parent&&o.parent.type==='TransformControlsGizmo')return;
+        meshes.push(o);
+      });
+      meshes.forEach(function(o){
+        var uid=o.uuid;
+        if(!ep._origMats[uid]){
+          ep._origMats[uid]={
+            metalness:o.material.metalness||0,
+            roughness:o.material.roughness!=null?o.material.roughness:0.5,
+            envMap:o.material.envMap||null,
+            envMapIntensity:o.material.envMapIntensity||1
+          };
+        }
+        var orig=ep._origMats[uid];
+        if(amount<=0){
+          if('metalness' in o.material)o.material.metalness=orig.metalness;
+          if('roughness' in o.material)o.material.roughness=orig.roughness;
+          if('envMap' in o.material){o.material.envMap=orig.envMap;o.material.envMapIntensity=orig.envMapIntensity}
+          /* Remove inner clone */
+          if(o._chromeInner){o.remove(o._chromeInner);o._chromeInner=null}
+        } else {
+          /* Upgrade material to StandardMaterial if it doesn't support metalness */
+          if(!('metalness' in o.material)){
+            var clr=o.material.color?o.material.color.clone():new THREE.Color(0xffffff);
+            var op=o.material.opacity;var tr=o.material.transparent;
+            o.material=new THREE.MeshStandardMaterial({color:clr,opacity:op,transparent:tr,roughness:0.5,metalness:0});
+          }
+          o.material.metalness=orig.metalness+(1-orig.metalness)*amount;
+          o.material.roughness=orig.roughness*(1-amount*0.95);
+          o.material.envMap=ep.envMap;
+          o.material.envMapIntensity=amount*2.5;
+          /* Create inner clone using same geometry shape */
+          if(!o._chromeInner&&o.geometry){
+            /* Skip tiny decorative meshes */
+            o.geometry.computeBoundingSphere();
+            if(o.geometry.boundingSphere&&o.geometry.boundingSphere.radius<0.15)return;
+            var clonedGeo=o.geometry.clone();
+            var innerMat=new THREE.MeshStandardMaterial({
+              color:0x1a1a3f,metalness:1,roughness:0.02,
+              envMap:ep.envMap,envMapIntensity:3
+            });
+            var inner=new THREE.Mesh(clonedGeo,innerMat);
+            inner.scale.set(0.82,0.82,0.82);
+            inner._isChromeCopy=true;
+            o.add(inner);
+            o._chromeInner=inner;
+          }
+          if(o._chromeInner){
+            var s=0.7+0.2*(1-amount);
+            o._chromeInner.scale.set(s,s,s);
+            o._chromeInner.material.envMapIntensity=amount*4;
+            o._chromeInner.visible=amount>0.1;
+          }
+        }
+        o.material.needsUpdate=true;
+      });
+    };
+  }
+  function tryPatch(){
+    if(typeof THREE==='undefined'){setTimeout(tryPatch,50);return}
+    var orig=THREE.WebGLRenderer.prototype.render;
+    THREE.WebGLRenderer.prototype.render=function(sc,cam){
+      if(!ep.ready&&sc&&sc.isScene&&cam){ep.scene=sc;ep.camera=cam;ep.renderer=this;THREE.WebGLRenderer.prototype.render=orig;setTimeout(setup,0)}
+      return orig.apply(this,arguments)};
+  }
+  tryPatch();setTimeout(poll,300);
+}
+var INJECT='<'+'script>('+_epInject.toString()+')();<'+'/script>';
+function getEP(){try{var w=document.getElementById('sceneFrame').contentWindow;return w&&w._ep&&w._ep.ready?w._ep:null}catch(e){return null}}
+
+var DEFAULT_POP=['❤','🔥','⚔','💎','🌟','⭐','✨','💀','👑','🗡','🛡','🌊','⚡','🌈','🏰','🐉','🧙','👸','🦸','🚀','🌲','🌌','🔮','🪄','☀','🌙','💧','❄','🌋','🎭','👻','🦄'];
+var emojiUsage={};
+var _store={get:function(k){if(window.storage)return window.storage.get(k);try{var v=localStorage.getItem(k);return v?{value:v}:null}catch(e){return null}},set:function(k,v){if(window.storage)return window.storage.set(k,v);try{localStorage.setItem(k,v)}catch(e){}}};
+async function loadUsage(){try{var r=await _store.get('emoji_usage');if(r&&r.value)emojiUsage=JSON.parse(r.value)}catch(e){}}
+async function saveUsage(){try{await _store.set('emoji_usage',JSON.stringify(emojiUsage))}catch(e){}}
+function getPopular(){
+  var entries=Object.entries(emojiUsage).sort(function(a,b){return b[1]-a[1]});
+  if(entries.length<5)return DEFAULT_POP;
+  return entries.slice(0,32).map(function(e){return e[0]});
+}
+function trackEmoji(em){emojiUsage[em]=(emojiUsage[em]||0)+1;saveUsage()}
+var CATS=[
+{n:'⭐ Часто используемые',e:DEFAULT_POP},
+{n:'😀 Смайлики',e:['😀','😃','😄','😁','😆','😅','🤣','😂','🙂','🙃','😉','😊','😇','🥰','😍','🤩','😘','😋','😛','😜','🤪','🤗','🤔','😏','😒','🙄','😬','😌','😴','🤯','🤠','🥳','😎','🤓','😟','😲','😳','🥺','😢','😭','😱','😤','😡','😈','👿','💀','☠','💩','🤡','👻','👽','👾','🤖']},
+{n:'🧙 Фэнтези',e:['🧙','🧝','🧚','🧜','🧛','🧟','🧞','👼','🤺','🥷','🕵','👸','🤴','🦸','🦹','🧑‍🚀','🧑‍🎤','🧑‍🎨','🧑‍🔬','🧑‍💻','👮','💂']},
+{n:'❤ Сердца',e:['❤','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','💕','💖','💘','💝']},
+{n:'🌸 Растения',e:['💐','🌸','🌹','🥀','🌺','🌻','🌼','🌷','🌱','🪴','🌲','🌳','🌴','🌵','🍀','✨','🌾','🍁','🍃','🌿','🍄']},
+{n:'🌍 Погода',e:['🌍','🌋','⛰','🏔','🏕','🏖','🏜','🏝','🌅','🌄','🌠','🌇','🏙','🌃','🌉','🌌','☀','⛅','☁','🌧','⛈','❄','🌬','💨','🌀','🌈','⚡','🌪','🌊','🌕','🌑','🌙','⭐','💫','☄','🪐','🔥','💧']},
+{n:'🐶 Животные',e:['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐸','🐵','🐔','🐧','🐦','🦅','🦉','🦇','🐺','🐴','🦄','🐝','🦋','🐌','🐞','🕷','🐢','🐍','🦖','🦕','🐙','🐬','🐳','🦈','🐊','🐅','🐘','🦏','🐪','🦒','🐉','🐲']},
+{n:'🍎 Еда',e:['🍇','🍉','🍊','🍌','🍎','🍒','🍓','🍕','🍔','🌮','🍣','🍦','🎂','🍰','🍫','🍭','☕','🍷','🍾']},
+{n:'⚡ Стихии',e:['🔥','💧','🌊','🌪','🌈','⚡','❄','☄','💥','🌀','✨','💫','⭐','🌟','🌑','🌙','🪐']},
+{n:'🔮 Мистика',e:['🔮','🪄','🧿','💎','👁','☯','🗡','⚔','🛡','💀','☠','👻','🦇','🕷','🌌']},
+{n:'🏰 Здания',e:['🏠','🏡','🏢','🏭','🏯','🏰','🗼','🗽','⛪','🕌','⛩','🏕','🏖','🏜','🏞','🏛','🌃','🌆','🌇','⛺','🧱']},
+{n:'✈ Транспорт',e:['🚲','🏍','🚂','✈','🛩','🛸','🚀','⛵','🚤','🛳','🚢']},
+{n:'🧪 Наука',e:['🔭','🔬','🧬','🧪','💡','💻','📡','🛸','🚀','🪐','🌌','⭐','☄','🌍','🔮']},
+{n:'🎵 Музыка',e:['🎵','🎶','🎤','🎧','🎷','🎸','🎹','🎻','🥁','🎬','🎭','🎨','🎪','🎡','🎢','🎊','🎉','🎈','🎆']}];
+var ALL_EXAMPLES=[
+{l:'🧙 Квест',s:'🧙➡️🌲➡️🐉➡️⚔➡️💎'},{l:'🚀 Космос',s:'🧑‍🚀➡️🚀➡️🌌➡️🪐➡️⭐'},
+{l:'👸 Принцесса',s:'👸➡️🏰➡️🌹➡️💔'},{l:'🌊 Шторм',s:'🌊➡️⛩➡️⛈➡️💀➡️🌅'},
+{l:'🦹 Герой',s:'🦸➡️🏙➡️👺➡️⚔➡️✨'},{l:'🌙 Ночь',s:'🌙➡️🦉➡️🌌➡️✨'},
+{l:'🔥 Битва',s:'⚔➡️🔥➡️🐉➡️💀➡️👑'},{l:'🧪 Наука',s:'🧪➡️💥➡️🧬➡️🤖'},
+{l:'🏔 Путь',s:'🏔➡️🌲➡️🐺➡️❄➡️🌅'},{l:'💎 Сокровище',s:'🗡➡️🏰➡️💀➡️🔮➡️💎'},
+{l:'🌈 Мечта',s:'🌈➡️🦄➡️✨➡️🌸'},{l:'🐉 Дракон',s:'🐉➡️🔥➡️🏰➡️👸➡️⚔'},
+{l:'🌋 Катастрофа',s:'🌋➡️🌊➡️🌪➡️💀'},{l:'🎭 Маски',s:'🎭➡️🌙➡️🗡➡️💔➡️👻'},
+{l:'⚡ Шторм',s:'⚡➡️🌊➡️⛵➡️🌀➡️🌅'},{l:'🛸 Пришельцы',s:'🛸➡️🌌➡️👽➡️💥➡️🌍'}
+];
+function getRandomExamples(n){var a=ALL_EXAMPLES.slice();for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t}return a.slice(0,n||5)}
+var EXAMPLES=getRandomExamples(5);
+var MATERIALS=['default','chrome','glass','matte','glossy','emissive','neon','holographic','velvet','ceramic'],MATNAMES=['Базовый','Хром','Стекло','Матовый','Глянец','Свечение','Неон','Голограмма','Бархат','Керамика'];
+var story=[],mode='3d',lastCode='',selUUID=null,oVis=true,oWire=false,lastClickTs=0,_pollReady=false,_sceneEmojiCount=0,generatedEmojis=[];
+
+var GMs=[{name:'Закат',stops:['#1a0533','#8b2252','#e8732a','#ffd700','#ffffee'],on:false,op:.4,bl:'color'},{name:'Ночь',stops:['#000020','#001848','#2060a0','#60b0d0','#d0f0ff'],on:false,op:.4,bl:'color'},{name:'Киберпанк',stops:['#0a0020','#2d004d','#ff00ff','#00ffff','#ffffff'],on:false,op:.35,bl:'color'},{name:'Сепия',stops:['#1a0f00','#3d2b1f','#704214','#c69c6d','#f5e6cc'],on:false,op:.5,bl:'color'},{name:'Лес',stops:['#001a00','#0a3d0a','#1a6b1a','#4da64d','#b3ffb3'],on:false,op:.3,bl:'color'},{name:'Огонь',stops:['#1a0000','#661100','#cc3300','#ff8800','#ffee00'],on:false,op:.35,bl:'overlay'}];
+
+var $=function(s){return document.getElementById(s)},frame=function(){return $('sceneFrame')};
+var lv=function(id){return document.querySelector('[data-light="'+id+'"]')};
+function getMat(o){if(!o||!o.material)return null;return Array.isArray(o.material)?o.material[0]:o.material}
+var cv=function(id){var els=document.querySelectorAll('[data-cc="'+id+'"]');for(var i=0;i<els.length;i++){if(els[i].offsetParent!==null)return els[i]}return els[0]};
+var ov=function(id){return document.querySelector('[data-obj="'+id+'"]')};
+
+
+/* ═══ API SETTINGS ═══ */
+var apiConfig={provider:'claude_ai',key:'',model:'anthropic/claude-sonnet-4-20250514',url:''};
+async function loadApiConfig(){try{var r=await _store.get('api_config');if(r&&r.value)apiConfig=JSON.parse(r.value)}catch(e){}}
+async function saveApiConfig(){try{await _store.set('api_config',JSON.stringify(apiConfig))}catch(e){}}
+function showSettingsModal(){var m=$('settingsModal');m.style.display='flex';$('apiProvider').value=apiConfig.provider;$('apiKey').value=apiConfig.key||'';$('apiModel').value=apiConfig.model||'anthropic/claude-sonnet-4-20250514';$('customUrl').value=apiConfig.url||'';updateSettingsUI()}
+function updateSettingsUI(){var p=$('apiProvider').value;$('apiKeyWrap').style.display=p!=='claude_ai'?'block':'none';$('customUrlWrap').style.display=p==='custom'?'block':'none';$('modelWrap').style.display=p!=='claude_ai'?'block':'none';var h={claude_ai:'Работает внутри Claude.ai без ключа.',gemini:'Бесплатно! Получите ключ на aistudio.google.com → API keys.',openrouter:'openrouter.ai — поддерживает CORS.',custom:'Любой OpenAI-совместимый API с поддержкой CORS.'};if(p==='gemini')$('apiModel').value=apiConfig.model||'gemini-2.0-flash';$('apiHint').textContent=h[p]||''}
+function doSaveSettings(){apiConfig.provider=$('apiProvider').value;if(apiConfig.provider==='gemini'&&!$('apiModel').value)$('apiModel').value='gemini-2.0-flash';apiConfig.key=$('apiKey').value;apiConfig.model=$('apiModel').value;apiConfig.url=$('customUrl').value;saveApiConfig();$('settingsModal').style.display='none'}
+async function callLLM(sys,msg){
+  var p=apiConfig.provider;
+  if(p==='claude_ai'){
+    var r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:32000,system:sys,messages:[{role:'user',content:msg}]})});
+    if(!r.ok)throw new Error('API '+r.status);var d=await r.json();return(d.content&&d.content[0]&&d.content[0].text)||'';
+  }
+  if(p==='gemini'){
+    var gUrl='https://generativelanguage.googleapis.com/v1beta/models/'+(apiConfig.model||'gemini-2.0-flash')+':generateContent?key='+apiConfig.key;
+    var r2=await fetch(gUrl,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:sys+'\n\n'+msg}]}],generationConfig:{maxOutputTokens:32000,temperature:0.7}})});
+    if(!r2.ok){var e2=await r2.json().catch(function(){return{}});throw new Error('Gemini: '+(e2.error&&e2.error.message||r2.status))}
+    var d2=await r2.json();return(d2.candidates&&d2.candidates[0]&&d2.candidates[0].content&&d2.candidates[0].content.parts&&d2.candidates[0].content.parts[0]&&d2.candidates[0].content.parts[0].text)||'';
+  }
+  if(p==='openrouter'){
+    var r2=await fetch('https://openrouter.ai/api/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+apiConfig.key,'HTTP-Referer':location.href},body:JSON.stringify({model:apiConfig.model,max_tokens:32000,messages:[{role:'system',content:sys},{role:'user',content:msg}]})});
+    if(!r2.ok){var e2=await r2.json().catch(function(){return{}});throw new Error('OpenRouter: '+(e2.error&&e2.error.message||r2.status))}var d2=await r2.json();return(d2.choices&&d2.choices[0]&&d2.choices[0].message&&d2.choices[0].message.content)||'';
+  }
+  if(p==='custom'){
+    var r3=await fetch(apiConfig.url,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+apiConfig.key},body:JSON.stringify({model:apiConfig.model,max_tokens:32000,messages:[{role:'system',content:sys},{role:'user',content:msg}]})});
+    if(!r3.ok)throw new Error('Custom API '+r3.status);var d3=await r3.json();return(d3.choices&&d3.choices[0]&&d3.choices[0].message&&d3.choices[0].message.content)||'';
+  }
+  throw new Error('Выберите провайдера в настройках (🔑)');
+}
+function switchTab(n){document.querySelectorAll('.inner-tab').forEach(function(t,i){t.classList.toggle('active',i===(n==='story'?0:1))});$('tcStory').classList.toggle('active',n==='story');$('tcRender').classList.toggle('active',n==='render');if(n==='render')updRP()}
+function updRP(){var has=frame().style.display==='block';$('rpEmpty').style.display=has?'none':'flex';$('rpCtrl').style.display=has?'':'none';if(has){buildObjList();var ep=getEP();if(ep&&ep.scene){var bg=lv('bgC');if(bg&&ep.scene.background&&ep.scene.background.getHexString)bg.value='#'+ep.scene.background.getHexString()}}}
+var collapsedCats={};
+function buildPicker(f){var w=$('picker');w.innerHTML='';f=(f||'').trim().toLowerCase();CATS.forEach(function(cat,ci){var em=f?cat.e.filter(function(e){return e.includes(f)||cat.n.toLowerCase().includes(f)}):cat.e;if(!em.length)return;var d=document.createElement('div');d.className='picker-cat'+(collapsedCats[ci]?' collapsed':'');d.innerHTML='<div class="cat-name" data-cat-toggle="'+ci+'"><span>'+cat.n+' <span style="opacity:.4;font-size:.55rem">'+em.length+'</span></span><span class="cat-chevron">▼</span></div><div class="emoji-row">'+em.map(function(e){return'<div class="ep" data-emoji="'+e+'">'+e+'</div>'}).join('')+'</div>';w.appendChild(d)})}
+function renderStrip(){var s=$('strip');s.innerHTML='';story.forEach(function(e,i){if(i>0){var a=document.createElement('span');a.className='arrow-beat';a.textContent='→';s.appendChild(a)}var b=document.createElement('div');b.className='story-beat';b.innerHTML=e+'<div class="remove-beat" data-remove="'+i+'">×</div>';s.appendChild(b)});var p=document.createElement('div');p.className='beat-empty';p.textContent='＋';p.setAttribute('data-action','scrollPicker');s.appendChild(p)}
+
+function sendLight(){var ep=getEP();if(!ep)return;try{
+  ep.dL.color.set(lv('dirC').value);ep.dL.intensity=+lv('dirI').value;ep.dL.position.x=+lv('dirX').value;ep.dL.position.y=+lv('dirY').value;ep.dL.position.z=+lv('dirZ').value;
+  /* Update point lights from UI */
+  document.querySelectorAll('[data-pl]').forEach(function(el){
+    var parts=el.getAttribute('data-pl').split('-');
+    var idx=+parts[0],prop=parts[1];
+    var pl=ep.pointLights[idx];if(!pl)return;
+    if(prop==='c')pl.color.set(el.value);
+    if(prop==='i')pl.intensity=+el.value;
+    if(prop==='x')pl.position.x=+el.value;
+    if(prop==='y')pl.position.y=+el.value;
+    if(prop==='z')pl.position.z=+el.value;
+  });
+  /* Force materials to react to light changes */
+  ep.scene.traverse(function(o){if(o.isMesh&&o.material)o.material.needsUpdate=true});
+  /* Background color — only if it's a Color (not a gradient texture) */
+  var bgEl=lv('bgC');
+  if(bgEl){
+    var iw=frame().contentWindow;
+    if(ep.scene.background&&ep.scene.background.isColor){ep.scene.background.set(bgEl.value)}
+    else if(!ep.scene.background&&iw&&iw.THREE){ep.scene.background=new iw.THREE.Color(bgEl.value)}
+    if(ep.updateEnvMap)ep.updateEnvMap(bgEl.value);
+  }
+  /* Env map intensity on all materials */
+  var envI=lv('envI');if(envI){var ei=+envI.value;ep.scene.traverse(function(o){
+    if(!o.isMesh||!o.material)return;
+    /* Force assign envMap from scene.environment if material supports it */
+    if(o.material.isMeshStandardMaterial||o.material.isMeshPhysicalMaterial){
+      if(ep.scene.environment&&!o.material.envMap)o.material.envMap=ep.scene.environment;
+      o.material.envMapIntensity=ei;o.material.needsUpdate=true;
+    }
+  })}
+  var exEl=lv('expo');
+  if(exEl){var iw=frame().contentWindow;if(iw&&iw._ep&&iw._ep.renderer)iw._ep.renderer.toneMappingExposure=+exEl.value}
+}catch(e){}}
+var plData=[{c:'#0a0066',i:3,x:0,y:5,z:0}];
+function buildPointLightsUI(){
+  var w=$('pointLightsWrap');if(!w)return;w.innerHTML='';
+  plData.forEach(function(p,i){
+    var d=document.createElement('div');d.style.cssText='border:1px solid var(--render-border);border-radius:6px;padding:6px;margin-bottom:5px';
+    d.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px"><span style="font-size:.65rem;color:var(--render-txt)">Point '+(i+1)+'</span><button class="rp-rst" data-action="removePointLight" data-pl-idx="'+i+'" title="Удалить">✕</button></div>'+
+      '<div class="rp-row"><span class="rp-label" style="min-width:20px">🎨</span><input type="color" class="rp-color" data-pl="'+i+'-c" value="'+p.c+'"><input type="range" class="rp-range" data-pl="'+i+'-i" min="0" max="10" step="0.1" value="'+p.i+'"><span class="rp-val">'+p.i.toFixed(1)+'</span></div>'+
+      '<div class="rp-row" style="margin-top:3px"><span class="rp-label" style="min-width:20px">X</span><input type="range" class="rp-range" data-pl="'+i+'-x" min="-20" max="20" step="0.5" value="'+p.x+'"><span class="rp-val">'+p.x.toFixed(1)+'</span></div>'+
+      '<div class="rp-row" style="margin-top:3px"><span class="rp-label" style="min-width:20px">Y</span><input type="range" class="rp-range" data-pl="'+i+'-y" min="-20" max="20" step="0.5" value="'+p.y+'"><span class="rp-val">'+p.y.toFixed(1)+'</span></div>'+
+      '<div class="rp-row" style="margin-top:3px"><span class="rp-label" style="min-width:20px">Z</span><input type="range" class="rp-range" data-pl="'+i+'-z" min="-20" max="20" step="0.5" value="'+p.z+'"><span class="rp-val">'+p.z.toFixed(1)+'</span></div>';
+    w.appendChild(d);
+  });
+}
+function syncPointLights(){
+  var ep=getEP();if(!ep)return;
+  while(ep.pointLights.length>0)ep.removePointLight(ep.pointLights.length-1);
+  plData.forEach(function(p){ep.addPointLight(p.c,p.i,p.x,p.y,p.z)});
+  /* Force material update so new lights affect objects */
+  ep.scene.traverse(function(o){if(o.isMesh&&o.material)o.material.needsUpdate=true});
+}
+/* Upgrade all MeshBasicMaterial to MeshStandardMaterial so lights affect them */
+/* upgradeMaterials removed - was causing black screen by converting BasicMaterial to StandardMaterial without sufficient lighting */
+
+/* ═══ POST-PROCESSING FILTERS ═══ */
+function applyFX(){
+  var f=frame();if(!f)return;
+  var fv=function(id){var el=document.querySelector('[data-fx="'+id+'"]');return el?+el.value:0};
+  var gv=function(id,def){var el=cv(id);return el?el.value:def};
+  var filters=[];
+  filters.push('brightness('+gv('bright','1')+')');
+  filters.push('contrast('+gv('contrast','1')+')');
+  filters.push('saturate('+gv('sat','1')+')');
+  filters.push('hue-rotate('+gv('hue','0')+'deg)');
+  filters.push('sepia('+gv('sepia','0')+')');
+  var blur=fv('blur');if(blur>0)filters.push('blur('+blur+'px)');
+  var inv=fv('invert');if(inv>0)filters.push('invert('+inv+')');
+  f.style.filter=filters.join(' ');
+  var grainV=fv('grain');
+  var gc=$('grainOvl');
+  if(grainV>0){
+    var sw=$('sceneWrap');gc.width=sw.offsetWidth;gc.height=sw.offsetHeight;
+    gc.style.opacity=grainV;
+    var gx=gc.getContext('2d');var gd=gx.createImageData(gc.width,gc.height);
+    for(var gi=0;gi<gd.data.length;gi+=4){var gv=Math.random()*255;gd.data[gi]=gv;gd.data[gi+1]=gv;gd.data[gi+2]=gv;gd.data[gi+3]=40}
+    gx.putImageData(gd,0,0);
+  } else {gc.style.opacity='0'}
+  $('scanOvl').style.opacity=fv('scanlines');
+  /* Chrome effect */
+  var ep=getEP();
+  var chrV=fv('chrome'),glV=fv('glass');
+  if(ep&&ep.setChrome)ep.setChrome(chrV);
+  if(ep&&ep.setGlass)ep.setGlass(glV>0&&chrV>0?0:glV);
+}
+function applyCC(){applyFX()}
+function applyVig(){var v=+cv('vig').value;var c=$('vigC'),w=$('sceneWrap');c.width=w.offsetWidth;c.height=w.offsetHeight;c.style.opacity=v>0?'1':'0';var x=c.getContext('2d');x.clearRect(0,0,c.width,c.height);if(v<=0)return;var cx=c.width/2,cy=c.height/2,r=Math.max(cx,cy);var gr=x.createRadialGradient(cx,cy,r*.3,cx,cy,r);gr.addColorStop(0,'rgba(0,0,0,0)');gr.addColorStop(1,'rgba(0,0,0,'+v+')');x.fillStyle=gr;x.fillRect(0,0,c.width,c.height)}
+function buildGM(){var l=$('gmList');l.innerHTML='';GMs.forEach(function(g,i){var d=document.createElement('div');d.className='gm-card'+(g.on?' on':'');d.innerHTML='<div style="display:flex;align-items:center;gap:6px"><div class="gm-preview" style="background:linear-gradient(90deg,'+g.stops.join(',')+')"></div><button class="gm-btn'+(g.on?' on':'')+'" data-gm-toggle="'+i+'">✓</button><button class="gm-btn" data-gm-remove="'+i+'">✕</button></div><div class="gm-colors">'+g.stops.map(function(s,si){return'<input type="color" class="gm-clr" data-gm-clr="'+i+'-'+si+'" value="'+s+'">'}).join('')+'<button class="gm-btn" data-gm-add-stop="'+i+'" title="+ цвет" style="font-size:.6rem">+</button></div><div style="display:flex;gap:5px;align-items:center"><span style="font-size:.6rem;color:var(--render-txt2);min-width:48px">'+g.name+'</span><input type="range" class="rp-range" data-gm-op="'+i+'" min="0" max="1" step="0.05" value="'+g.op+'" style="flex:1"><select data-gm-bl="'+i+'" style="background:rgba(128,128,128,.1);border:1px solid var(--render-border);border-radius:3px;color:var(--render-txt);font-size:.55rem;padding:1px 2px">'+['color','overlay','multiply','screen','soft-light'].map(function(m){return'<option value="'+m+'"'+(g.bl===m?' selected':'')+'>'+m+'</option>'}).join('')+'</select></div>';l.appendChild(d)})}
+function renderGrad(){
+  var ep=getEP();
+  /* Also render to overlay canvas for preview */
+  var cv=$('gradC'),w=$('sceneWrap');cv.width=w.offsetWidth;cv.height=w.offsetHeight;
+  var x=cv.getContext('2d');x.clearRect(0,0,cv.width,cv.height);
+  var active=GMs.filter(function(g){return g.on});
+  if(!active.length){cv.style.opacity='0';
+    /* Reset scene background to solid color */
+    if(ep&&ep.scene){var bgEl=lv('bgC');if(bgEl){var iw=frame().contentWindow;if(iw&&iw.THREE){ep.scene.background=new iw.THREE.Color(bgEl.value)}if(ep.updateEnvMap)ep.updateEnvMap(bgEl.value)}}
+    return}
+  cv.style.opacity='0.3';cv.style.mixBlendMode='normal';cv.style.pointerEvents='none';
+  active.forEach(function(g){x.save();x.globalAlpha=g.op;var gr=x.createLinearGradient(0,0,cv.width,0);g.stops.forEach(function(s,i){gr.addColorStop(i/(g.stops.length-1),s)});x.fillStyle=gr;x.fillRect(0,0,cv.width,cv.height);x.restore()});
+  /* Apply gradient as scene background texture */
+  if(ep&&ep.scene){
+    try{
+      var iw=frame().contentWindow;if(!iw||!iw.THREE)return;
+      var bgCanvas=document.createElement('canvas');bgCanvas.width=512;bgCanvas.height=512;
+      var bx=bgCanvas.getContext('2d');
+      active.forEach(function(g){bx.save();bx.globalAlpha=g.op;
+        var gr=bx.createLinearGradient(0,0,512,0);
+        g.stops.forEach(function(s,i){gr.addColorStop(i/(g.stops.length-1),s)});
+        bx.fillStyle=gr;bx.fillRect(0,0,512,512);bx.restore()});
+      var tex=new iw.THREE.CanvasTexture(bgCanvas);
+      ep.scene.background=tex;
+      /* Update env map to average gradient color for reflections */
+      if(ep.updateEnvMap){
+        var avg=bx.getImageData(256,256,1,1).data;
+        ep.updateEnvMap('rgb('+avg[0]+','+avg[1]+','+avg[2]+')');
+      }
+    }catch(e){}
+  }
+}
+function sendObjProp(){var ep=getEP();if(!ep||!selUUID)return;try{var o=ep.byUUID(selUUID);var _m=getMat(o);if(!_m)return;o.material=_m;/* normalize to single */o.material.color.set(ov('color').value);o.material.opacity=+ov('opacity').value;o.material.transparent=o.material.opacity<1;if('roughness' in o.material)o.material.roughness=+ov('rough').value;
+    if('metalness' in o.material)o.material.metalness=+ov('metal').value;
+    if('emissive' in o.material){o.material.emissive.set(ov('emClr').value);o.material.emissiveIntensity=+ov('emInt').value}
+    /* Update Chrome/Glass base values so they don't overwrite */
+    var uid=o.uuid;
+    var ep2=getEP();
+    if(ep2&&ep2._origMats&&ep2._origMats[uid]){ep2._origMats[uid].metalness=+ov('metal').value;ep2._origMats[uid].roughness=+ov('rough').value}
+    if(ep2&&ep2._origMatsGlass&&ep2._origMatsGlass[uid]){ep2._origMatsGlass[uid].metalness=+ov('metal').value;ep2._origMatsGlass[uid].roughness=+ov('rough').value}
+    o.material.needsUpdate=true}catch(e){}}
+function getObjRoot(o){var p=o;while(p.parent&&p.parent.type!=='Scene'&&p.parent.parent)p=p.parent;return p}
+
+/* Stop all rotation animations on a root group by freezing rotation values */
+function stopSpin(root){
+  if(!root)return;
+  root._epFrozen=true;
+  root.traverse(function(ch){ch._epFrozen=true});
+}
+
+function buildTexBtns(){var g=$('texG');g.innerHTML='';MATERIALS.forEach(function(m,i){var b=document.createElement('button');b.className='tex-btn'+(i===0?' active':'');b.textContent=MATNAMES[i];b.setAttribute('data-mat',m);g.appendChild(b)})}
+var selectedUUIDs=[];
+
+var ANIMS=['none','levitate','spinY','spinX','spinZ','pulse','bounce','swing'],
+    ANIM_NAMES=['Нет','Левитация','Вращение Y','Вращение X','Вращение Z','Пульс','Прыжки','Качание'];
+var _objAnims={};/* uuid -> {id:intervalId, type:string} */
+function buildAnimBtns(){
+  var g=$('animG');if(!g)return;g.innerHTML='';
+  var current=selUUID&&_objAnims[selUUID]?_objAnims[selUUID].type:'none';
+  ANIMS.forEach(function(a,i){
+    var b=document.createElement('button');b.className='tex-btn'+(a===current?' active':'');
+    b.textContent=ANIM_NAMES[i];b.setAttribute('data-anim',a);g.appendChild(b);
+  });
+}
+function applyObjAnim(uuid,type){
+  var ep=getEP();if(!ep)return;
+  var obj=ep.byUUID(uuid);if(!obj)return;
+  var root=getObjRoot(obj);
+  /* Stop existing animation */
+  if(_objAnims[uuid]){clearInterval(_objAnims[uuid].id);delete _objAnims[uuid]}
+  if(type==='none')return;
+  var baseY=root.position.y;
+  var baseScale=root.scale.x;
+  var t=0;
+  var id=setInterval(function(){
+    t+=0.016;
+    if(type==='levitate')root.position.y=baseY+Math.sin(t*2)*0.4;
+    else if(type==='spinY')root.rotation.y+=0.02;
+    else if(type==='spinX')root.rotation.x+=0.02;
+    else if(type==='spinZ')root.rotation.z+=0.02;
+    else if(type==='pulse'){var s=baseScale+Math.sin(t*3)*0.1;root.scale.set(s,s,s)}
+    else if(type==='bounce'){root.position.y=baseY+Math.abs(Math.sin(t*3))*0.6}
+    else if(type==='swing'){root.rotation.z=Math.sin(t*2)*0.3}
+  },16);
+  _objAnims[uuid]={id:id,type:type};
+}
+function buildObjList(){
+  var ep=getEP();if(!ep||!ep.scene)return;var w=$('objList');w.innerHTML='';
+  function isGizmo(o){return o.type==='TransformControlsPlane'||o.parent&&o.parent.type==='TransformControlsGizmo'||(o.name&&o.name.match&&o.name.match(/^[XYZE]{1,4}$/))}
+  /* Collect groups with children */
+  var groups={},loose=[];
+  ep.scene.children.forEach(function(child){
+    if(isGizmo(child))return;
+    if(child.isGroup||child.children&&child.children.length>0){
+      var meshes=[];
+      child.traverse(function(m){if(m.isMesh&&!isGizmo(m))meshes.push(m)});
+      if(meshes.length>0)groups[child.uuid]={name:child.name||'Group',meshes:meshes};
+    } else if(child.isMesh){loose.push(child)}
+  });
+  /* Render grouped */
+  Object.keys(groups).forEach(function(gid){
+    var g=groups[gid];
+    var folder=document.createElement('div');folder.style.cssText='margin-bottom:4px';
+    var head=document.createElement('div');
+    head.style.cssText='display:flex;align-items:center;gap:4px;padding:2px 0;cursor:pointer;font-size:.7rem;font-weight:500;color:var(--render-txt)';
+    var guuids=g.meshes.map(function(m){return m.uuid}).join(',');var allChecked=g.meshes.every(function(m){return selectedUUIDs.indexOf(m.uuid)>=0});
+    head.innerHTML='<input type="checkbox" data-folder-check="'+guuids+'" style="accent-color:var(--violet);margin:0;width:13px;height:13px"'+(allChecked?' checked':'')+'><span class="obj-folder-chev" style="font-size:.5rem;transition:transform .2s">▼</span>📁 '+g.name+' <span style="opacity:.4;font-size:.6rem">('+g.meshes.length+')</span>';
+    head.setAttribute('data-folder-toggle',gid);
+    folder.appendChild(head);
+    var body=document.createElement('div');body.style.cssText='padding-left:14px';body.id='folder-'+gid;
+    g.meshes.forEach(function(o){
+      var d=document.createElement('div');d.style.cssText='display:flex;align-items:center;gap:4px;padding:2px 0;cursor:pointer;font-size:.65rem;color:var(--render-txt2)';
+      var nm=o.name||(o.geometry?o.geometry.type.replace('BufferGeometry','').replace('Geometry',''):'Mesh');
+      var checked=selectedUUIDs.indexOf(o.uuid)>=0;
+      d.innerHTML='<input type="checkbox" data-obj-check="'+o.uuid+'" style="accent-color:var(--violet);margin:0;width:12px;height:12px"'+(checked?' checked':'')+'><span style="width:6px;height:6px;border-radius:2px;background:'+(o.material&&o.material.color?'#'+o.material.color.getHexString():'#888')+';flex-shrink:0"></span><span data-select-uuid="'+o.uuid+'" style="flex:1">'+nm+'</span>';
+      body.appendChild(d);
+    });
+    folder.appendChild(body);w.appendChild(folder);
+  });
+  /* Render loose meshes */
+  loose.forEach(function(o){
+    if(isGizmo(o))return;
+    var d=document.createElement('div');d.style.cssText='display:flex;align-items:center;gap:4px;padding:2px 0;cursor:pointer;font-size:.65rem;color:var(--render-txt)';
+    var nm=o.name||(o.geometry?o.geometry.type.replace('BufferGeometry','').replace('Geometry',''):'Mesh');
+    var checked=selectedUUIDs.indexOf(o.uuid)>=0;
+    d.innerHTML='<input type="checkbox" data-obj-check="'+o.uuid+'" style="accent-color:var(--violet);margin:0;width:12px;height:12px"'+(checked?' checked':'')+'><span style="width:6px;height:6px;border-radius:2px;background:'+(o.material&&o.material.color?'#'+o.material.color.getHexString():'#888')+';flex-shrink:0"></span><span data-select-uuid="'+o.uuid+'" style="flex:1">'+nm+'</span>';
+    w.appendChild(d);
+  });
+}
+function applyToSelected(fn){var ep=getEP();if(!ep)return;selectedUUIDs.forEach(function(u){var o=ep.byUUID(u);if(o)fn(o,getObjRoot(o))})}
+function openObjCtx(uuid,cx,cy){var ep=getEP();if(!ep)return;var o=ep.byUUID(uuid);if(!o)return;selUUID=uuid;oVis=true;oWire=false;
+  /* Center geometry if not already centered */
+  /* Stop any spinning animation */
+  stopSpin(getObjRoot(o));
+  $('ctxName').textContent=o.name||(o.geometry?o.geometry.type.replace('BufferGeometry','').replace('Geometry',''):'Mesh');ov('color').value=o.material&&o.material.color?'#'+o.material.color.getHexString():'#ffffff';ov('opacity').value=o.material?o.material.opacity:1;ov('rough').value=o.material&&o.material.roughness!=null?o.material.roughness:.5;ov('metal').value=o.material&&o.material.metalness!=null?o.material.metalness:0;var ctx=$('objCtx');ctx.classList.add('visible');buildTexBtns();buildAnimBtns()}
+
+setInterval(function(){var ep=getEP();if(ep&&!_pollReady){_pollReady=true;$('outLabel').textContent='3D ● connected';$('addBtn').style.display='';syncPointLights();updRP()}if(!ep||!ep.lastClick)return;if(ep.lastClick.ts<=lastClickTs)return;lastClickTs=ep.lastClick.ts;openObjCtx(ep.lastClick.uuid,ep.lastClick.cx,ep.lastClick.cy)},80);
+
+
+async function addToScene(){
+  if(story.length<1)return;
+  var ep=getEP();if(!ep)return;
+  var style=$('styleSelect').value;
+  var sp=_SS[style]||_SS.cinematic;
+  var newEmojis=story.filter(function(e){return generatedEmojis.indexOf(e)<0||story.filter(function(x){return x===e}).length>generatedEmojis.filter(function(x){return x===e}).length});
+  if(newEmojis.length<1){alert('Добавьте новые эмодзи');$('addBtn').disabled=false;$('addBtn').textContent='＋ В сцену';return}
+  var emojis=newEmojis.join(' ');
+  $('addBtn').disabled=true;$('addBtn').textContent='⏳';
+  try{
+    var sys='Ты генерируешь ТОЛЬКО JavaScript код (без HTML, без markdown, без ```).\n'+
+      'Код будет выполнен через eval() внутри существующей Three.js сцены.\n'+
+      'Доступны переменные: scene, camera, renderer, THREE.\n'+
+      'Создай объект(ы) для эмодзи: '+emojis+'\n'+
+      'ПРАВИЛА:\n'+
+      '1. Каждый эмодзи = var g=new THREE.Group(); g.name="имя"; ... scene.add(g);\n'+
+      '2. Материал: '+sp.mt+'\n'+
+      '3. Палитра: '+sp.pal+'\n'+
+      '4. Стиль: '+sp.d+'\n'+
+      '5. Размещай в случайной позиции: g.position.set((Math.random()-0.5)*6, Math.random()*2, (Math.random()-0.5)*6);\n'+
+      '6. geometry.computeVertexNormals() после каждой геометрии.\n'+
+      '7. Используй var (НЕ const/let).\n'+
+      '8. НЕ создавай scene, camera, renderer — они уже есть.\n'+
+      '9. НЕ добавляй animate loop, requestAnimationFrame, OrbitControls.\n'+
+      '10. ВЕРНИ ТОЛЬКО JavaScript код.';
+    var code=await callLLM(sys,'Добавь в сцену: '+emojis);
+    code=code.replace(/^```[a-z]*\n?/,'').replace(/\n?```$/,'').trim();
+    /* Execute in iframe context */
+    var iw=frame().contentWindow;
+    if(iw){
+      var fn=new iw.Function('scene','camera','renderer','THREE',code);
+      fn(ep.scene,ep.camera,ep.renderer,iw.THREE);
+      /* Append code to lastCode so download includes it */
+      if(lastCode&&lastCode.indexOf('</body>')!==-1){
+        lastCode=lastCode.replace('</body>','<'+'script>'+code+'<'+'/script>\n</body>');
+      }
+      setTimeout(buildObjList,500);
+    }
+  }catch(err){
+    console.error('Add to scene error:',err);
+    alert('Ошибка добавления: '+err.message);
+  }
+  $('addBtn').disabled=false;$('addBtn').textContent='＋ В сцену';
+  generatedEmojis=generatedEmojis.concat(story);
+  story=[];renderStrip();
+}
+async function generate(){
+  if(story.length<1){$('strip').style.outline='2px solid var(--rust)';setTimeout(function(){$('strip').style.outline=''},1200);return}
+  generatedEmojis=[];_sceneEmojiCount=0;$('genBtn').disabled=true;$('phView').style.display='none';frame().style.display='none';$('loader').style.display='flex';$('copyBtn').style.display='none';$('fsBtn').style.display='none';$('objCtx').classList.remove('visible');selUUID=null;_pollReady=false;
+  $('loadStrip').textContent=story.join(' → ');var caps=['Интерпретирую…','Геометрия…','Освещение…','Детали…','Финал…'],ci=0;var ct=setInterval(function(){$('loadCap').textContent=caps[Math.min(++ci,caps.length-1)]},2e3);
+  var style=$('styleSelect').value,is3d=mode==='3d',str=story.join(' → ');
+  var sp=_SS[style]||_SS.cinematic;
+  var qual=$('qualitySelect').value;
+  var qRules={
+    high:'КАЧЕСТВО HD: SphereGeometry(r,64,64), CylinderGeometry(r,r,h,48), TorusGeometry(r,t,24,64). Vertex displacement для рельефа. geometry.computeVertexNormals() после каждой геометрии.',
+    med:'КАЧЕСТВО НОРМ: SphereGeometry(r,32,32), CylinderGeometry(r,r,h,32), TorusGeometry(r,t,16,48). Максимум 15 объектов.',
+    low:'КАЧЕСТВО ЛЁГКОЕ: SphereGeometry(r,16,16), CylinderGeometry(r,r,h,16). Максимум 8 объектов. БЕЗ vertex displacement. БЕЗ fog.'
+  };
+  var sys='Ты — генератор HTML/Three.js. Выводи ТОЛЬКО HTML без markdown.\nbody{margin:0;overflow:hidden;background:'+sp.bg+'} canvas 100vw x 100vh.\n'+(qRules[qual]||qRules.med)+'\n';
+  if(is3d)sys+='Three.js r128. cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js и .../examples/js/controls/OrbitControls.js.\nИспользуй var (НЕ const/let) для scene, camera, renderer.\nscene, camera=PerspectiveCamera(60), camera.position.set(0,3,10), camera.up.set(0,1,0), OrbitControls, controls.target.set(0,1,0), animate.\n\nЗАПРЕЩЕНО: НЕ создавай пол/ground plane. Объекты парят.\nЗАПРЕЩЕНО: НЕ используй MeshBasicMaterial — он не реагирует на свет. Используй MeshStandardMaterial или MeshPhongMaterial для ВСЕХ объектов.\n\nКАЧЕСТВО ПОЛИГОНОВ: высокая детализация — SphereGeometry(r,64,64) — ВАЖНО: для ПОЛНЫХ сфер используй все параметры по умолчанию (phiLength=Math.PI*2, thetaLength=Math.PI). НЕ создавай полусферы. После создания геометрии ОБЯЗАТЕЛЬНО: geometry.computeVertexNormals() для устранения швов, PlaneGeometry(w,h,128,128), CylinderGeometry(r,r,h,64). Минимум 32 сегмента для округлых форм.\n\nПРАВИЛА МОДЕЛИРОВАНИЯ ДЕТАЛЕЙ:\n1. Рельеф и текстура (кратеры луны, кора дерева, камни) — делай через VERTEX DISPLACEMENT на самой геометрии, НЕ через отдельные меши. Пример кратеров:\nvar geo=new THREE.SphereGeometry(2,64,64);\nvar pos=geo.attributes.position;\nfor(var i=0;i<pos.count;i++){var v=new THREE.Vector3().fromBufferAttribute(pos,i); /* push vertices inward randomly */ var noise=Math.random(); if(noise>0.92){v.multiplyScalar(0.85+Math.random()*0.1)} pos.setXYZ(i,v.x,v.y,v.z)} pos.needsUpdate=true; geo.computeVertexNormals();\n2. Выемки, дыры, неровности — смещай ВЕРШИНЫ существующей геометрии, а не создавай отдельные объекты для каждой детали.\n3. Составные объекты (персонажи, замки) — Group из крупных частей (голова, тело, башни), но мелкие детали (глаза, окна, кратеры) — vertex displacement или bump через canvas texture.\n4. Shape+ExtrudeGeometry для плоских форм.\n\nГРУППИРОВКА: каждый эмодзи-объект = THREE.Group с именем. group.name=имяОбъекта. Даже одиночный меш в Group. ВСЕ части одного объекта в ОДНОЙ группе.\ngeometry.center() после создания каждой геометрии.\n🌈 РАДУГА — ОБЯЗАТЕЛЬНЫЙ КОД: var rg=new THREE.Group(); rg.name="rainbow"; var colors=["#ff0000","#ff7700","#ffff00","#00ff00","#0000ff","#4b0082","#8b00ff"]; for(var ri=0;ri<7;ri++){var tg=new THREE.TorusGeometry(3-ri*0.3,0.12,16,64,Math.PI); var tm=new THREE.Mesh(tg,new THREE.MeshStandardMaterial({color:colors[ri]})); tm.rotation.z=Math.PI/2; rg.add(tm);} scene.add(rg); — Тор с rotation.z=PI/2 создаёт ВЕРТИКАЛЬНУЮ арку.\n❤ СЕРДЦЕ — стандартный Three.js heart shape:\nvar hs=new THREE.Shape();hs.moveTo(2.5,2.5);hs.bezierCurveTo(2.5,2.5,2,0,0,0);hs.bezierCurveTo(-3,0,-3,3.5,-3,3.5);hs.bezierCurveTo(-3,5.5,-1,7.7,2.5,9.5);hs.bezierCurveTo(6,7.7,8,5.5,8,3.5);hs.bezierCurveTo(8,3.5,8,0,5,0);hs.bezierCurveTo(3.5,0,2.5,2.5,2.5,2.5);\nПосле: heartMesh.rotation.x=Math.PI; heartMesh.scale.set(0.3,0.3,0.3);\nАНИМАЦИЯ: НЕ анимируй объекты. НЕ пиши position.y=, rotation.x+=, rotation.y+= в animate loop. Объекты должны быть СТАТИЧНЫМИ. animate loop нужен ТОЛЬКО для renderer.render(scene,camera) и controls.update(). Пользователь сам добавит анимацию через интерфейс.\nМАСШТАБ: все объекты размещай в радиусе 5 единиц от центра. Размер 0.5-2 единицы.\nМОДЕЛИ: 🐉 дракон/змея = длинное тело (TubeGeometry+CatmullRomCurve3), крылья (Shape+ExtrudeGeometry), рога (ConeGeometry). НЕ делай птиц вместо драконов. 🐍 змея = только длинное извивающееся тело через TubeGeometry. Размер объектов 0.5-2 единицы. Камера на расстоянии 10.\nПРАВИЛА 3D-ПОСТРОЕНИЯ (ОБЯЗАТЕЛЬНО ДЛЯ ВСЕХ СТИЛЕЙ):\n1. Детали поверхности (кратеры, чешуя, кора, вмятины) — ТОЛЬКО vertex displacement на ОДНОЙ геометрии. ЗАПРЕЩЕНО создавать отдельные меши для деталей.\n2. Каждый эмодзи = Group из 3-5 крупных частей. Мелкие детали — displacement или canvas texture.\n3. geometry.computeVertexNormals() после КАЖДОЙ геометрии.\n4. Все объекты в радиусе 5 единиц от центра, размер 0.5-2.\nСтиль: '+sp.d+'\nПалитра: '+sp.pal+'\nМатериал: '+sp.mt;
+  else sys+='2D Canvas. Стиль: '+sp.d+'\nПалитра: '+sp.pal+'\nКаждый эмодзи=нарисованный объект с rAF.';
+  sys+='\nВЕРНИ ТОЛЬКО HTML.';
+  try{
+    var html=await callLLM(sys,'Сюжет: '+str+'\nРежим: '+(is3d?'3D':'2D')+'\nСтиль: '+style+'\nВизуализация.');
+    clearInterval(ct);
+    html=html.replace(/^```html?\n?/,'').replace(/\n?```$/,'').trim();
+    if(is3d){html=html.replace(/\bconst\s+(scene|camera|renderer)\b/g,'var $1');html=html.replace(/\blet\s+(scene|camera|renderer)\b/g,'var $1');
+      if(html.indexOf('</body>')!==-1)html=html.replace('</body>',INJECT+'\n</body>');else html+='\n'+INJECT}
+    lastCode=html;var f=frame();f.style.filter='';f.srcdoc=html;f.style.display='block';
+    $('loader').style.display='none';$('copyBtn').style.display='';$('fsBtn').style.display='';$('recBtn').style.display='';$('camAnim').style.display='';$('camLockBtn').style.display='';$('addBtn').style.display='';$('outLabel').textContent=is3d?'3D…':'Иллюстрация';
+    _sceneEmojiCount=story.length;
+    setTimeout(updRP,2000);
+  }catch(err){clearInterval(ct);$('loader').style.display='none';$('phView').style.display='flex';$('phView').querySelector('.ph-art').textContent='⚠️';$('phView').querySelector('.ph-text').textContent='Ошибка: '+err.message}
+  $('genBtn').disabled=false;
+}
+
+/* ═══ VIDEO RECORDING + CAMERA ANIMATION ═══ */
+var _mediaRec=null,_recChunks=[],_camAnimId=0;
+function startCamAnim(ep){
+  stopCamAnim();
+  var animType=$('camAnim').value;if(animType==='none')return;
+  var cam=ep.camera;if(!cam)return;
+  var startTime=Date.now();
+  var startPos={x:cam.position.x,y:cam.position.y,z:cam.position.z};
+  var radius=Math.sqrt(startPos.x*startPos.x+startPos.z*startPos.z)||15;
+  var startAngle=Math.atan2(startPos.z,startPos.x);
+  _camAnimId=setInterval(function(){
+    var t=(Date.now()-startTime)/1000;
+    if(animType==='orbit'){var a=startAngle+t*0.3;cam.position.x=Math.cos(a)*radius;cam.position.z=Math.sin(a)*radius}
+    else if(animType==='slow'){var a=startAngle+t*0.1;cam.position.x=Math.cos(a)*radius;cam.position.z=Math.sin(a)*radius}
+    else if(animType==='zoomin'){var s=Math.max(0.3,1-t*0.05);cam.position.x=startPos.x*s;cam.position.y=startPos.y*s;cam.position.z=startPos.z*s}
+    else if(animType==='rise'){cam.position.y=startPos.y+t*0.5}
+    else if(animType==='spiral'){var a=startAngle+t*0.3;var r=radius-t*0.3;if(r<2)r=2;cam.position.x=Math.cos(a)*r;cam.position.z=Math.sin(a)*r;cam.position.y=startPos.y+t*0.2}
+    cam.lookAt(0,2,0);
+  },16);
+}
+function stopCamAnim(){if(_camAnimId){clearInterval(_camAnimId);_camAnimId=0}}
+function startRecording(){
+  try{
+    var canvas=frame().contentWindow.document.querySelector('canvas');
+    if(!canvas){alert('Нет canvas для записи');return}
+    var stream=canvas.captureStream(30);
+    var mimeType='video/webm;codecs=vp9';
+    if(!MediaRecorder.isTypeSupported(mimeType))mimeType='video/webm';
+    if(!MediaRecorder.isTypeSupported(mimeType))mimeType='';
+    _mediaRec=new MediaRecorder(stream,mimeType?{mimeType:mimeType,videoBitsPerSecond:5000000}:{videoBitsPerSecond:5000000});
+    _recChunks=[];
+    _mediaRec.ondataavailable=function(e){if(e.data.size>0)_recChunks.push(e.data)};
+    _mediaRec.onstop=function(){
+      var blob=new Blob(_recChunks,{type:'video/webm'});
+      var u=URL.createObjectURL(blob);
+      var a=document.createElement('a');a.href=u;a.download='emojiviz-'+($('styleSelect').value||'scene')+'-'+Date.now()+'.webm';
+      document.body.appendChild(a);a.click();document.body.removeChild(a);
+      setTimeout(function(){URL.revokeObjectURL(u)},3000);
+      $('recBtn').textContent='⏺ Запись';$('recBtn').style.background='';$('recBtn').style.color='';
+    };
+    _mediaRec.start();
+    var ep=getEP();if(ep)startCamAnim(ep);
+    $('recBtn').textContent='⏹ Стоп';$('recBtn').style.background='var(--rust)';$('recBtn').style.color='#fff';
+  }catch(e){alert('Ошибка записи: '+e.message)}
+}
+function stopRecording(){stopCamAnim();if(_mediaRec&&_mediaRec.state==='recording'){_mediaRec.stop();$('recBtn').style.background='';$('recBtn').style.color=''}}
+function resetAll(){document.querySelectorAll('[data-cc]').forEach(function(el){var k=el.getAttribute('data-cc');el.value=(k==='hue'?0:k==='vig'||k==='sepia'?0:1)});applyCC();applyVig();var defs={'dirC':'#ffeedd','dirI':'2.0','ptC':'#5b4fcf','ptI':'0','ptX':'0','ptY':'5','ptZ':'0','expo':'1','envI':'1','dirX':'5','dirY':'10','dirZ':'5'};Object.keys(defs).forEach(function(k){var el=lv(k);if(el)el.value=defs[k]});sendLight();GMs.forEach(function(g){g.on=false});buildGM();renderGrad();frame().style.filter='';$('grainOvl').style.opacity=0;$('scanOvl').style.opacity=0;document.querySelectorAll('[data-fx]').forEach(function(el){el.value=0});var ep=getEP();if(ep&&ep.setChrome)ep.setChrome(0);if(ep&&ep.setGlass)ep.setGlass(0);$('objCtx').classList.remove('visible');selUUID=null}
+
+document.addEventListener('click',function(e){var t=e.target,a=t.getAttribute('data-action')||t.closest('[data-action]')&&t.closest('[data-action]').getAttribute('data-action');
+  if(t.classList.contains('ep')&&t.getAttribute('data-emoji')){if(story.length<8){var em=t.getAttribute('data-emoji');story.push(em);trackEmoji(em);CATS[0].e=getPopular();renderStrip();buildPicker($('search').value)}return}
+  var catTog=t.getAttribute('data-cat-toggle')||t.closest('[data-cat-toggle]')&&t.closest('[data-cat-toggle]').getAttribute('data-cat-toggle');
+  if(catTog!=null){collapsedCats[+catTog]=!collapsedCats[+catTog];var pc=t.closest('.picker-cat');if(pc)pc.classList.toggle('collapsed');return}
+  if(t.getAttribute('data-remove')!=null){story.splice(+t.getAttribute('data-remove'),1);renderStrip();return}
+  var gmT=t.getAttribute('data-gm-toggle');if(gmT!=null){GMs[+gmT].on=!GMs[+gmT].on;buildGM();renderGrad();return}
+  var gmR=t.getAttribute('data-gm-remove');if(gmR!=null){GMs.splice(+gmR,1);buildGM();renderGrad();return}
+  var gmAS=t.getAttribute('data-gm-add-stop');if(gmAS!=null){var gm=GMs[+gmAS];if(gm&&gm.stops.length<8){gm.stops.push('#'+Math.floor(Math.random()*0xffffff).toString(16).padStart(6,'0'));buildGM();renderGrad()}return}
+  var anim=t.getAttribute('data-anim');if(anim!=null&&selUUID){$('animG').querySelectorAll('.tex-btn').forEach(function(b){b.classList.remove('active')});t.classList.add('active');applyObjAnim(selUUID,anim);return}
+  var mat=t.getAttribute('data-mat');if(mat!=null&&selUUID){$('texG').querySelectorAll('.tex-btn').forEach(function(b){b.classList.remove('active')});t.classList.add('active');var ep=getEP();if(ep){var o=ep.byUUID(selUUID);if(o&&o.material){ep.applyMaterial(o,mat)}}return}
+  var selU=t.getAttribute('data-select-uuid')||t.closest('[data-select-uuid]')&&t.closest('[data-select-uuid]').getAttribute('data-select-uuid');if(selU){openObjCtx(selU);return}
+  var rstL=t.getAttribute('data-rst-light');if(rstL){rstL.split(',').forEach(function(p){var kv=p.split(':');var el=lv(kv[0]);if(el){el.value=kv[1]}});sendLight();var row=t.closest('.rp-row');if(row){var vl=row.querySelector('.rp-val');var inp=row.querySelector('input[type=range]');if(vl&&inp)vl.textContent=parseFloat(inp.value).toFixed(inp.step&&inp.step.indexOf('.')>=0?inp.step.split('.')[1].length:1)}return}
+  var rstCC=t.getAttribute('data-rst-cc');if(rstCC){var kv=rstCC.split(':');var el=cv(kv[0]);if(el){el.value=kv[1];if(kv[0]==='vig')applyVig();else applyCC();var row=t.closest('.rp-row');if(row){var vl=row.querySelector('.rp-val');if(vl)vl.textContent=kv[0]==='hue'?kv[1]+'°':parseFloat(kv[1]).toFixed(2)}}return}
+  var rstFX=t.getAttribute('data-rst-fx');if(rstFX){var kv=rstFX.split(':');var el=document.querySelector('[data-fx="'+kv[0]+'"]');if(el){el.value=kv[1];applyFX();var row=t.closest('.rp-row');if(row){var vl=row.querySelector('.rp-val');if(vl)vl.textContent=parseFloat(kv[1]).toFixed(2)}}return}
+  var fCheck=t.getAttribute('data-folder-check');if(fCheck){var uuids=fCheck.split(',');if(t.checked){uuids.forEach(function(u){if(selectedUUIDs.indexOf(u)<0)selectedUUIDs.push(u)})}else{selectedUUIDs=selectedUUIDs.filter(function(u){return uuids.indexOf(u)<0})}buildObjList();return}
+  var fToggle=t.getAttribute('data-folder-toggle')||t.closest('[data-folder-toggle]')&&t.closest('[data-folder-toggle]').getAttribute('data-folder-toggle');if(fToggle){var fb=$('folder-'+fToggle);if(fb){var vis=fb.style.display!=='none';fb.style.display=vis?'none':'';var chev=t.closest('[data-folder-toggle]').querySelector('.obj-folder-chev');if(chev)chev.style.transform=vis?'rotate(-90deg)':''}return}
+  var objChk=t.getAttribute('data-obj-check');if(objChk){if(t.checked){if(selectedUUIDs.indexOf(objChk)<0)selectedUUIDs.push(objChk)}else{selectedUUIDs=selectedUUIDs.filter(function(u){return u!==objChk})}return}
+  if(!a)return;
+  if(a==='mode3d'){mode='3d';document.querySelectorAll('.mode-btn').forEach(function(b,i){b.classList.toggle('active',i===0)})}
+  else if(a==='mode2d'){mode='2d';document.querySelectorAll('.mode-btn').forEach(function(b,i){b.classList.toggle('active',i===1)})}
+  else if(a==='tabStory')switchTab('story');else if(a==='tabRender')switchTab('render');
+  else if(a==='undo'){story.pop();renderStrip()}else if(a==='clear'){story=[];renderStrip()}
+  else if(a==='generate')generate();
+  else if(a==='addToScene')addToScene();
+  else if(a==='copy'){navigator.clipboard.writeText(lastCode);$('copyBtn').textContent='✓';setTimeout(function(){$('copyBtn').textContent='⎘ HTML'},1500)}
+  else if(a==='fs'){
+    /* Capture current iframe HTML (includes runtime changes) */
+    var iw=frame().contentWindow;
+    var exportHtml=lastCode;
+    if(iw&&iw.document){
+      try{exportHtml='<!DOCTYPE html><html>'+iw.document.documentElement.innerHTML+'</html>'}catch(e){}
+    }
+    var ep=getEP();
+    if(ep){
+      var bs='<'+'script>setTimeout(function(){if(typeof THREE==="undefined"||typeof scene==="undefined")return;';
+      /* Remove ALL existing lights */
+      bs+='var rm=[];scene.traverse(function(o){if(o.isLight)rm.push(o)});rm.forEach(function(l){if(l.parent)l.parent.remove(l)});';
+      /* Tone mapping */
+      bs+='renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure='+lv('expo').value+';renderer.outputEncoding=THREE.sRGBEncoding;';
+      /* Background */
+      var bgEl=lv('bgC');if(bgEl)bs+='scene.background=new THREE.Color(\''+bgEl.value+'\');';
+      /* Directional light */
+      bs+='var dl=new THREE.DirectionalLight(new THREE.Color(\''+lv('dirC').value+'\'),'+lv('dirI').value+');dl.position.set('+lv('dirX').value+','+lv('dirY').value+','+lv('dirZ').value+');scene.add(dl);';
+      /* Point lights */
+      plData.forEach(function(p,i){bs+='var pl'+i+'=new THREE.PointLight(new THREE.Color(\''+p.c+'\'),'+p.i+',80);pl'+i+'.position.set('+p.x+','+p.y+','+p.z+');scene.add(pl'+i+');'});
+      /* Upgrade MeshBasicMaterial */
+      bs+='scene.traverse(function(o){if(o.isMesh&&o.material&&o.material.type==="MeshBasicMaterial"){var clr=o.material.color?o.material.color.clone():new THREE.Color(0xffffff);o.material=new THREE.MeshStandardMaterial({color:clr,roughness:0.5,metalness:0})}});';
+      bs+='},1000);<'+'/script>';
+      if(exportHtml.indexOf('</body>')!==-1)exportHtml=exportHtml.replace('</body>',bs+'</body>');
+    }
+    var bl=new Blob([exportHtml],{type:'text/html'});var u=URL.createObjectURL(bl);var dl=document.createElement('a');dl.href=u;dl.download='emojiviz-scene.html';document.body.appendChild(dl);dl.click();document.body.removeChild(dl);setTimeout(function(){URL.revokeObjectURL(u)},3000)}
+  else if(a==='scrollPicker'){$('picker').scrollIntoView({behavior:'smooth'})}
+  else if(a==='toggle'){var sec=t.closest('[data-sec]');if(sec)$(sec.getAttribute('data-sec')).classList.toggle('collapsed')}
+  else if(a==='addPointLight'){var darkColors=['#0a0066','#00066a','#2a004a','#004a2a','#4a0020','#003355','#220055','#005533','#330044','#001a66'];plData.push({c:darkColors[Math.floor(Math.random()*darkColors.length)],i:3,x:Math.random()*10-5,y:5,z:Math.random()*10-5});buildPointLightsUI();syncPointLights()}
+  else if(a==='removePointLight'){var pli=+t.getAttribute('data-pl-idx');plData.splice(pli,1);buildPointLightsUI();syncPointLights()}
+  else if(a==='addGM'){var rc=function(){return'#'+Math.floor(Math.random()*0xffffff).toString(16).padStart(6,'0')};GMs.push({name:'Custom',stops:[rc(),rc(),rc()],on:true,op:.35,bl:'color'});buildGM();renderGrad()}
+  else if(a==='toggleCamLock'){var ep=getEP();if(ep&&ep.controls){ep.controls.enabled=!ep.controls.enabled;$('camLockBtn').textContent=ep.controls.enabled?'🔓 Камера':'🔒 Камера';$('camLockBtn').style.background=ep.controls.enabled?'':'var(--violet)';$('camLockBtn').style.color=ep.controls.enabled?'':'#ffffff'}}
+  else if(a==='startRec'){if(_mediaRec&&_mediaRec.state==='recording')stopRecording();else startRecording()}
+  else if(a==='resetAll')resetAll();
+  else if(a==='loadScene'){$('sceneFileInput').click()}
+  else if(a==='openSettings')showSettingsModal();
+  else if(a==='toggleTheme'){var isDark=document.documentElement.getAttribute('data-theme')==='dark';document.documentElement.setAttribute('data-theme',isDark?'light':'dark');try{_store.set('ep_theme',isDark?'light':'dark')}catch(e){}}
+  else if(a==='batchRotX'){applyToSelected(function(o,r){r.rotation.x+=Math.PI/2})}
+  else if(a==='batchRotZ'){applyToSelected(function(o,r){r.rotation.z+=Math.PI/2})}
+  else if(a==='batchHide'){applyToSelected(function(o,r){r.visible=false})}
+  else if(a==='batchShow'){applyToSelected(function(o,r){r.visible=true})}
+  else if(a==='closeSettings'){$('settingsModal').style.display='none'}
+  else if(a==='saveSettings')doSaveSettings();
+  else if(a==='closeCtx'){$('objCtx').classList.remove('visible');selUUID=null;var ep=getEP();if(ep&&ep.detachGizmo)ep.detachGizmo()}
+  else if(a==='toggleVis'&&selUUID){oVis=!oVis;t.textContent=oVis?'👁 Видим':'🚫 Скрыт';var ep3=getEP();if(ep3){var o3=ep3.byUUID(selUUID);if(o3){var r3=getObjRoot(o3);r3.visible=oVis}}}
+  else if(a==='deleteObj'&&selUUID){if(_objAnims[selUUID]){clearInterval(_objAnims[selUUID].id);delete _objAnims[selUUID]}var ep=getEP();if(ep){var o=ep.byUUID(selUUID);if(o){var r=getObjRoot(o);r.parent.remove(r)}};$('objCtx').classList.remove('visible');if(ep&&ep.detachGizmo)ep.detachGizmo();selUUID=null;buildObjList()}
+  else if(a==='gizmoRotate'&&selUUID){var ep=getEP();if(ep&&ep.attachGizmo)ep.attachGizmo(selUUID,'rotate')}
+  else if(a==='gizmoMove'&&selUUID){var ep=getEP();if(ep&&ep.attachGizmo)ep.attachGizmo(selUUID,'translate')}
+  else if(a==='gizmoScale'&&selUUID){var ep=getEP();if(ep&&ep.attachGizmo)ep.attachGizmo(selUUID,'scale')}
+  else if(a==='toggleWire'&&selUUID){oWire=!oWire;t.classList.toggle('active',oWire);var ep4=getEP();if(ep4){var o4=ep4.byUUID(selUUID);if(o4&&o4.material)o4.material.wireframe=oWire}}
+});
+document.addEventListener('input',function(e){var t=e.target,row=t.closest('.rp-row');if(row){var vEl=row.querySelector('.rp-val');if(vEl){var v=parseFloat(t.value);vEl.textContent=t.getAttribute('data-cc')==='hue'?v+'°':v.toFixed(t.step&&t.step.indexOf('.')>=0?t.step.split('.')[1].length:1)}}
+  if(t.getAttribute('data-light')!=null)sendLight();if(t.getAttribute('data-pl')!=null){var pp=t.getAttribute('data-pl').split('-');var pi=+pp[0];if(plData[pi]){if(pp[1]==='i')plData[pi].i=+t.value;if(pp[1]==='x')plData[pi].x=+t.value;if(pp[1]==='y')plData[pi].y=+t.value;if(pp[1]==='z')plData[pi].z=+t.value;if(pp[1]==='c')plData[pi].c=t.value}sendLight();}if(t.getAttribute('data-cc')!=null){if(t.getAttribute('data-cc')==='vig')applyVig();else applyCC()}if(t.getAttribute('data-obj')!=null)sendObjProp();if(t.getAttribute('data-fx')!=null)applyFX();
+  var gmOp=t.getAttribute('data-gm-op');if(gmOp!=null){GMs[+gmOp].op=+t.value;renderGrad()}});
+document.addEventListener('change',function(e){var t=e.target;if(t.getAttribute('data-light')!=null)sendLight();if(t.getAttribute('data-pl')!=null){var pp=t.getAttribute('data-pl').split('-');var pi=+pp[0];if(plData[pi]){if(pp[1]==='i')plData[pi].i=+t.value;if(pp[1]==='x')plData[pi].x=+t.value;if(pp[1]==='y')plData[pi].y=+t.value;if(pp[1]==='z')plData[pi].z=+t.value;if(pp[1]==='c')plData[pi].c=t.value}sendLight();}if(t.getAttribute('data-obj')!=null)sendObjProp();var gmBl=t.getAttribute('data-gm-bl');if(gmBl!=null){GMs[+gmBl].bl=t.value;renderGrad()}
+  var gmClr=t.getAttribute('data-gm-clr');if(gmClr!=null){var parts=gmClr.split('-');GMs[+parts[0]].stops[+parts[1]]=t.value;buildGM();renderGrad()}
+});
+
+(function(){var rs=$('resizer'),pn=$('leftPanel'),drag=false,sx=0,sw=0;rs.addEventListener('mousedown',function(e){e.preventDefault();drag=true;sx=e.clientX;sw=pn.offsetWidth;rs.classList.add('dragging');document.body.style.cursor='col-resize';document.body.style.userSelect='none'});window.addEventListener('mousemove',function(e){if(!drag)return;pn.style.width=Math.max(200,Math.min(window.innerWidth*.7,sw+(e.clientX-sx)))+'px'});window.addEventListener('mouseup',function(){if(!drag)return;drag=false;rs.classList.remove('dragging');document.body.style.cursor='';document.body.style.userSelect=''})})();
+new ResizeObserver(function(){renderGrad();applyVig()}).observe($('sceneWrap'));
+$('search').addEventListener('input',function(){buildPicker(this.value)});
+
+buildPicker('');
+EXAMPLES.forEach(function(ex){var c=document.createElement('span');c.className='ex-chip';c.textContent=ex.l;c.addEventListener('click',function(){var segs=Array.from(new Intl.Segmenter('und',{granularity:'grapheme'}).segment(ex.s));story=segs.map(function(x){return x.segment}).filter(function(x){return/\p{Emoji}/u.test(x)&&x!=='➡️'&&x!=='➡'});story.forEach(function(em){trackEmoji(em)});CATS[0].e=getPopular();renderStrip();buildPicker($('search').value)});$('exChips').appendChild(c)});
+buildGM();buildPointLightsUI();renderStrip();buildTexBtns();
+
+/* Load saved emoji usage and refresh popular category */
+loadUsage().then(function(){CATS[0].e=getPopular();buildPicker($('search').value)}).catch(function(){});
+loadApiConfig().then(function(){}).catch(function(){});
+/* Load saved theme */
+(async function(){try{var r=await _store.get('ep_theme');if(r&&r.value==='dark')document.documentElement.setAttribute('data-theme','dark')}catch(e){}})();
+
+/* ═══ LOAD SCENE ═══ */
+$('sceneFileInput').addEventListener('change',function(e){
+  var file=e.target.files[0];if(!file)return;
+  var reader=new FileReader();
+  reader.onload=function(ev){
+    var html=ev.target.result;
+    /* Inject our control script if not present */
+    if(html.indexOf('window._ep')<0){
+      if(html.indexOf('</body>')!==-1)html=html.replace('</body>',INJECT+'\n</body>');
+    }
+    lastCode=html;
+    var f=frame();f.style.filter='';f.srcdoc=html;f.style.display='block';
+    $('phView').style.display='none';
+    $('copyBtn').style.display='';$('fsBtn').style.display='';
+    $('recBtn').style.display='';$('camAnim').style.display='';
+    $('camLockBtn').style.display='';$('addBtn').style.display='';
+    $('outLabel').textContent='3D (загружено)';
+    _pollReady=false;
+    setTimeout(updRP,2000);
+  };
+  reader.readAsText(file);
+  e.target.value='';
+});
+$('apiProvider').addEventListener('change',updateSettingsUI);
+document.addEventListener('keydown',function(e){if(e.key==='Escape'){$('settingsModal').style.display='none'}});
+</script>
+</body>
+</html>

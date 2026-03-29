@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<!-- Главная оболочка приложения: панель сюжета + окно предпросмотра -->
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="EmojiVisualizer — AI-powered 3D visual art generator from emoji stories">
+<meta name="theme-color" content="#5b4fcf">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎬</text></svg>">
+<title>EmojiVisualizer</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<!-- Верхняя панель управления режимом, темой и настройками API -->
+<div class="header">
+  <div><div class="logo">Emoji<span>Visualizer</span></div><div class="subtitle">Штучки, дрючки и закарючки</div></div>
+  <div style="display:flex;align-items:center;gap:8px">
+    <div class="mode-switch">
+      <button class="mode-btn active" data-action="mode3d">◈ 3D</button>
+      <button class="mode-btn" data-action="mode2d">✦ 2D</button>
+    </div>
+    <select id="qualitySelect" data-action="quality" style="background:var(--warm);border:1.5px solid var(--line);border-radius:8px;padding:3px 8px;font-family:'DM Sans',sans-serif;font-size:.7rem;color:var(--muted);cursor:pointer" title="Качество рендера"><option value="high" selected>HD</option><option value="med">Норм</option><option value="low">Лёгкий</option></select>
+    <button class="theme-toggle" data-action="toggleTheme" title="Тема">
+      <span class="ico-moon">🌙</span>
+      <span class="ico-sun">☀</span>
+      <div class="thumb"></div>
+    </button>
+    <button data-action="loadScene" style="background:var(--warm);border:1.5px solid var(--line);border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:.9rem;display:flex;align-items:center;justify-content:center" title="Загрузить сцену">📂</button>
+    <input type="file" id="sceneFileInput" accept=".html" style="display:none">
+    <button data-action="openSettings" style="background:var(--warm);border:1.5px solid var(--line);border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:.9rem;display:flex;align-items:center;justify-content:center" title="API настройки">🔑</button>
+  </div>
+</div>
+<!-- Модальное окно настроек API (провайдер, ключ, модель, endpoint) -->
+<div id="settingsModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);align-items:center;justify-content:center">
+  <div style="background:var(--deep);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:20px;max-width:400px;width:90%;color:#d4d0c8;box-shadow:0 20px 60px rgba(0,0,0,.5)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <span style="font-size:.85rem;font-weight:500;color:rgba(255,255,255,.7)">🔑 API Настройки</span>
+      <button data-action="closeSettings" style="background:rgba(255,255,255,.06);border:none;border-radius:50%;width:24px;height:24px;color:rgba(255,255,255,.4);cursor:pointer;font-size:.7rem">✕</button>
+    </div>
+    <div style="margin-bottom:12px">
+      <div style="font-size:.68rem;color:rgba(255,255,255,.35);margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em">Провайдер</div>
+      <select id="apiProvider" style="width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:8px;color:#d4d0c8;font-family:'DM Sans',sans-serif;font-size:.82rem">
+        <option value="claude_ai">Claude.ai (без ключа, только в артифакте)</option>
+        <option value="gemini">Gemini (бесплатный ключ)</option>
+        <option value="openrouter">OpenRouter</option>
+        <option value="custom">Кастомный OpenAI-совместимый</option>
+      </select>
+    </div>
+    <div id="apiKeyWrap" style="margin-bottom:12px;display:none">
+      <div style="font-size:.68rem;color:rgba(255,255,255,.35);margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em">API Ключ</div>
+      <input type="password" id="apiKey" placeholder="sk-or-... или sk-ant-..." style="width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:8px;color:#d4d0c8;font-family:'DM Sans',sans-serif;font-size:.82rem">
+    </div>
+    <div id="customUrlWrap" style="margin-bottom:12px;display:none">
+      <div style="font-size:.68rem;color:rgba(255,255,255,.35);margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em">Endpoint URL</div>
+      <input type="text" id="customUrl" placeholder="https://api.example.com/v1/chat/completions" style="width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:8px;color:#d4d0c8;font-family:'DM Sans',sans-serif;font-size:.82rem">
+    </div>
+    <div id="modelWrap" style="margin-bottom:14px;display:none">
+      <div style="font-size:.68rem;color:rgba(255,255,255,.35);margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em">Модель</div>
+      <input type="text" id="apiModel" value="anthropic/claude-sonnet-4-20250514" style="width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:8px;color:#d4d0c8;font-family:'DM Sans',sans-serif;font-size:.82rem">
+    </div>
+    <div style="font-size:.65rem;color:rgba(255,255,255,.2);line-height:1.4;margin-bottom:14px" id="apiHint">Работает внутри Claude.ai без ключа. Для автономного использования выберите OpenRouter.</div>
+    <button data-action="saveSettings" style="width:100%;padding:8px;background:var(--violet);border:none;border-radius:8px;color:#fff;font-family:'DM Sans',sans-serif;font-size:.82rem;font-weight:500;cursor:pointer">Сохранить</button>
+  </div>
+</div>
+<!-- Рабочая зона: слева сценарий/рендер-контролы, справа сцена -->
+<div class="workspace">
+  <div class="left-panel" id="leftPanel">
+    <div class="inner-tabs">
+      <button class="inner-tab active" data-action="tabStory">🎭 Сюжет</button>
+      <button class="inner-tab" data-action="tabRender">⚙ Рендер</button>
+    </div>
+    <div class="tab-content active" id="tcStory">
+      <div class="examples-bar"><span class="ex-label">Примеры</span><span id="exChips"></span></div>
+      <div class="story-strip-wrap">
+        <div class="strip-label">Сюжет — кликай эмодзи ↓</div>
+        <div class="story-strip" id="strip"></div>
+        <div style="display:flex;justify-content:flex-end;margin-top:6px"><div class="strip-actions"><button class="sm-btn" data-action="undo">↩</button><button class="sm-btn" data-action="clear">✕</button></div></div>
+      </div>
+      <div class="section-head"><span class="section-label">Эмодзи</span><input class="picker-search" id="search" placeholder="поиск…" style="width:120px;margin:0;padding:.25rem .6rem"></div>
+      <div class="picker-wrap" id="picker"></div>
+      <div class="gen-bar">
+        <select class="style-select" id="styleSelect"><option value="cinematic">🎬 Кинематограф</option><option value="anime">🌸 Аниме</option><option value="watercolor">🎨 Акварель</option><option value="pixelart">👾 Пиксель-арт</option><option value="lowpoly">🔺 Low-poly</option><option value="realistic">📷 Реализм</option><option value="surreal">🌀 Сюрреализм</option><option value="chrometype">⛓ Chrometype</option><option value="solarpunk">🔮 Solarpunk</option><option value="y2k">💿 Y2K</option><option value="webcore">🕸 Webcore</option><option value="dreamcore">👁 Dreamcore</option><option value="glass">🫧 Glassmorphism</option><option value="void">🌑 Void</option><option value="candy">🍬 Candy</option></select>
+        <button class="gen-btn" id="genBtn" data-action="generate">Создать →</button><button class="gen-btn" id="addBtn" data-action="addToScene" style="display:none;background:var(--violet);font-size:.72rem;padding:6px 12px" title="Добавить выбранные эмодзи в текущую сцену">＋ В сцену</button>
+      </div>
+    </div>
+    <div class="tab-content" id="tcRender">
+      <div class="rp-empty" id="rpEmpty"><div class="rp-empty-text">Сгенерируйте сцену<br>на вкладке «Сюжет»</div></div>
+      
+      <div class="render-scroll" id="rpCtrl" style="display:none">
+        <div class="rp-section" id="secL"><div class="rp-section-head" data-action="toggle" data-sec="secL"><span class="rp-section-title">💡 Освещение</span><span class="rp-chevron">▼</span></div><div class="rp-section-body">
+          <div class="rp-row"><span class="rp-label">Направл.</span><input type="color" class="rp-color" data-light="dirC" value="#ffeedd"><input type="range" class="rp-range" data-light="dirI" min="0" max="10" step="0.1" value="2.0"><span class="rp-val">2.00</span><button class="rp-rst" data-rst-light="dirC:#ffeedd,dirI:2.0" title="Сброс">↺</button></div>
+          <div id="pointLightsWrap"></div>
+          <button class="gm-add" data-action="addPointLight">＋ Добавить Point Light</button>
+          <div class="rp-row"><span class="rp-label">Поз. X</span><input type="range" class="rp-range" data-light="dirX" min="-20" max="20" step="0.5" value="5"><span class="rp-val">5.0</span><button class="rp-rst" data-rst-light="dirX:5" title="Сброс">↺</button></div>
+          <div class="rp-row"><span class="rp-label">Поз. Y</span><input type="range" class="rp-range" data-light="dirY" min="-20" max="20" step="0.5" value="10"><span class="rp-val">10.0</span><button class="rp-rst" data-rst-light="dirY:10" title="Сброс">↺</button></div>
+          <div class="rp-row"><span class="rp-label">Поз. Z</span><input type="range" class="rp-range" data-light="dirZ" min="-20" max="20" step="0.5" value="5"><span class="rp-val">5.0</span><button class="rp-rst" data-rst-light="dirZ:5" title="Сброс">↺</button></div>
+          <div class="rp-row"><span class="rp-label">Фон</span><input type="color" class="rp-color" data-light="bgC" value="#04080f"></div>
+          <div class="rp-row"><span class="rp-label">Отражение</span><input type="range" class="rp-range" data-light="envI" min="0" max="5" step="0.1" value="1"><span class="rp-val">1.0</span><button class="rp-rst" data-rst-light="envI:1" title="Сброс">↺</button></div>
+          <div class="rp-row"><span class="rp-label">Экспоз.</span><input type="range" class="rp-range" data-light="expo" min="0.1" max="3" step="0.05" value="1"><span class="rp-val">1.00</span><button class="rp-rst" data-rst-light="expo:1" title="Сброс">↺</button></div>
+        </div></div>
+        <div class="rp-section" id="secC"><div class="rp-section-head" data-action="toggle" data-sec="secC"><span class="rp-section-title">🎨 Цветокоррекция</span><span class="rp-chevron">▼</span></div><div class="rp-section-body">
+          <div class="rp-row"><span class="rp-label">Яркость</span><input type="range" class="rp-range" data-cc="bright" min="0.2" max="3" step="0.05" value="1"><span class="rp-val">1.00</span><button class="rp-rst" data-rst-cc="bright:1" title="Сброс">↺</button></div>
+          <div class="rp-row"><span class="rp-label">Контраст</span><input type="range" class="rp-range" data-cc="contrast" min="0.2" max="3" step="0.05" value="1"><span class="rp-val">1.00</span><button class="rp-rst" data-rst-cc="contrast:1" title="Сброс">↺</button></div>
+          <div class="rp-row"><span class="rp-label">Насыщ.</span><input type="range" class="rp-range" data-cc="sat" min="0" max="3" step="0.05" value="1"><span class="rp-val">1.00</span><button class="rp-rst" data-rst-cc="sat:1" title="Сброс">↺</button></div>
+          <div class="rp-row"><span class="rp-label">Hue</span><input type="range" class="rp-range" data-cc="hue" min="0" max="360" step="1" value="0"><span class="rp-val">0°</span><button class="rp-rst" data-rst-cc="hue:0" title="Сброс">↺</button></div>
+          <div class="rp-row"><span class="rp-label">Сепия</span><input type="range" class="rp-range" data-cc="sepia" min="0" max="1" step="0.05" value="0"><span class="rp-val">0.00</span><button class="rp-rst" data-rst-cc="sepia:0" title="Сброс">↺</button></div>
+          <div class="rp-row"><span class="rp-label">Виньетка</span><input type="range" class="rp-range" data-cc="vig" min="0" max="1" step="0.05" value="0"><span class="rp-val">0.00</span><button class="rp-rst" data-rst-cc="vig:0" title="Сброс">↺</button></div>
+        </div></div>
+                <div class="rp-section" id="secF"><div class="rp-section-head" data-action="toggle" data-sec="secF"><span class="rp-section-title">✨ Эффекты</span><span class="rp-chevron">▼</span></div><div class="rp-section-body">
+          <div class="rp-row"><span class="rp-label">Зерно</span><input type="range" class="rp-range" data-fx="grain" min="0" max="1" step="0.05" value="0"><span class="rp-val">0.00</span><button class="rp-rst" data-rst-fx="grain:0" title="Сброс">↺</button></div>
+          <div class="rp-row"><span class="rp-label">Scanlines</span><input type="range" class="rp-range" data-fx="scanlines" min="0" max="1" step="0.05" value="0"><span class="rp-val">0.00</span><button class="rp-rst" data-rst-fx="scanlines:0" title="Сброс">↺</button></div>
+          <div class="rp-row"><span class="rp-label">Размытие</span><input type="range" class="rp-range" data-fx="blur" min="0" max="10" step="0.5" value="0"><span class="rp-val">0.0</span><button class="rp-rst" data-rst-fx="blur:0" title="Сброс">↺</button></div>
+          <div class="rp-row"><span class="rp-label">Инверсия</span><input type="range" class="rp-range" data-fx="invert" min="0" max="1" step="0.05" value="0"><span class="rp-val">0.00</span><button class="rp-rst" data-rst-fx="invert:0" title="Сброс">↺</button></div>
+          <div class="rp-row"><span class="rp-label">Chrome</span><input type="range" class="rp-range" data-fx="chrome" min="0" max="1" step="0.05" value="0"><span class="rp-val">0.00</span><button class="rp-rst" data-rst-fx="chrome:0" title="Сброс">↺</button></div>
+          <div class="rp-row"><span class="rp-label">Glass</span><input type="range" class="rp-range" data-fx="glass" min="0" max="1" step="0.05" value="0"><span class="rp-val">0.00</span><button class="rp-rst" data-rst-fx="glass:0" title="Сброс">↺</button></div>
+
+        </div></div>
+        <div class="rp-section" id="secG"><div class="rp-section-head" data-action="toggle" data-sec="secG"><span class="rp-section-title">🌈 Карты градиента</span><span class="rp-chevron">▼</span></div><div class="rp-section-body"><div id="gmList" class="gm-list"></div><button class="gm-add" data-action="addGM">＋ Добавить градиент</button></div></div>
+        <div class="rp-section" id="secO"><div class="rp-section-head" data-action="toggle" data-sec="secO"><span class="rp-section-title">🎯 Объекты</span><span class="rp-chevron">▼</span></div><div class="rp-section-body"><div style="font-size:.7rem;color:var(--render-txt2);font-style:italic">Кликните объект в сцене или ☑ несколько</div><div id="objList"></div><div style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap"><button class="tex-btn" data-action="batchRotX" title="Повернуть выбранные на 90° по X">☑ ↻X</button><button class="tex-btn" data-action="batchRotZ" title="Повернуть на 90° по Z">☑ ↻Z</button><button class="tex-btn" data-action="batchHide" title="Скрыть выбранные">☑ 🚫</button><button class="tex-btn" data-action="batchShow" title="Показать выбранные">☑ 👁</button></div></div></div>
+        <button class="rp-reset" data-action="resetAll">↺ Сбросить</button>
+      </div>
+    </div>
+  </div>
+  <div class="resizer" id="resizer"></div>
+  <div class="output">
+    <div class="output-head"><span class="output-label" id="outLabel">Предпросмотр</span><div class="out-actions"><button class="out-btn" id="camLockBtn" style="display:none" data-action="toggleCamLock">🔓 Камера</button><button class="out-btn" id="copyBtn" style="display:none" data-action="copy">⎘ HTML</button><button class="out-btn" id="fsBtn" style="display:none" data-action="fs">⤓ HTML</button><select id="camAnim" style="display:none;background:var(--render-head);border:1px solid var(--render-border);border-radius:6px;padding:3px 6px;font-family:'DM Sans',sans-serif;font-size:.65rem;color:var(--render-txt)"><option value="none">Без анимации</option><option value="orbit">🔄 Орбита</option><option value="slow">🐌 Медл. орбита</option><option value="zoomin">🔍 Наезд</option><option value="rise">⬆ Подъём</option><option value="spiral">🌀 Спираль</option></select><button class="out-btn" id="recBtn" style="display:none" data-action="startRec">⏺ Запись</button></div></div>
+    <div class="scene-wrap" id="sceneWrap">
+      <div class="placeholder" id="phView"><div class="ph-art">🎬</div><div class="ph-text">Составь сюжет и нажми «Создать»</div></div>
+      <div class="loader-view" id="loader" style="display:none"><div class="pulse-ring"></div><div class="loader-caption" id="loadCap">Интерпретирую…</div><div id="loadStrip" style="font-size:1.3rem;margin-top:.5rem"></div></div>
+      <iframe class="scene-frame" id="sceneFrame" style="display:none"></iframe>
+      <canvas id="gradC" class="grad-overlay"></canvas>
+      <canvas id="grainOvl" class="filter-overlay filter-grain"></canvas>
+      <div id="scanOvl" class="filter-overlay filter-scanlines"></div>
+      <canvas id="vigC" class="vig-overlay"></canvas>
+    </div>
+    <div class="obj-ctx" id="objCtx">
+      <div class="obj-ctx-head"><span class="obj-ctx-name" id="ctxName">Объект</span><button class="obj-ctx-x" data-action="closeCtx">✕</button></div>
+      <div class="obj-sec"><div class="obj-lbl">Анимация</div><div class="tex-grid" id="animG"></div></div>
+      <div class="obj-sec"><div class="obj-lbl">Гизмо</div><div class="rp-row"><button class="tex-btn" data-action="gizmoRotate" style="flex:1;text-align:center">↻ Вращать</button><button class="tex-btn" data-action="gizmoMove" style="flex:1;text-align:center">✥ Двигать</button><button class="tex-btn" data-action="gizmoScale" style="flex:1;text-align:center">⤡ Масштаб</button></div></div>
+      
+      <div class="obj-sec"><div class="obj-lbl">Материал</div>
+        <div class="rp-row"><span class="rp-label" style="min-width:45px">Цвет</span><input type="color" class="rp-color" data-obj="color" value="#ffffff"></div>
+        <div class="rp-row" style="margin-top:5px"><span class="rp-label" style="min-width:45px">Rough</span><input type="range" class="rp-range" data-obj="rough" min="0" max="1" step="0.05" value="0.5"><span class="rp-val">0.50</span></div>
+        <div class="rp-row" style="margin-top:5px"><span class="rp-label" style="min-width:45px">Metal</span><input type="range" class="rp-range" data-obj="metal" min="0" max="1" step="0.05" value="0"><span class="rp-val">0.00</span></div>
+        <div class="rp-row" style="margin-top:5px"><span class="rp-label" style="min-width:45px">Opacity</span><input type="range" class="rp-range" data-obj="opacity" min="0" max="1" step="0.05" value="1"><span class="rp-val">1.00</span></div>
+      </div>
+      <div class="obj-sec"><div class="obj-lbl">Свечение</div><div class="rp-row"><input type="color" class="rp-color" data-obj="emClr" value="#000000"><input type="range" class="rp-range" data-obj="emInt" min="0" max="3" step="0.1" value="0"><span class="rp-val">0.00</span></div></div>
+      <div class="obj-sec"><div class="obj-lbl">Материал</div><div class="tex-grid" id="texG"></div></div>
+      <div class="obj-sec"><div class="rp-row"><button class="tex-btn" data-action="deleteObj" style="flex:1;text-align:center;background:var(--rust);color:#fff;border-color:var(--rust)">🗑 Удалить</button></div></div>
+      <div class="obj-sec"><div class="rp-row"><button class="tex-btn" data-action="toggleVis" style="flex:1;text-align:center">👁 Видим</button><button class="tex-btn" data-action="toggleWire" style="flex:1;text-align:center">◇ Wire</button></div></div>
+    </div>
+  </div>
+
+  <!-- Основная логика приложения, генерации и связи с iframe-сценой -->
+  <script src="script.js"></script>
+</body>
+</html>
+
+
+
