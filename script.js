@@ -40,15 +40,15 @@ function _epInject(){
   // Инициализируем "надстройку" редактора поверх AI-сцены.
   function setup(){
     if(ep.ready)return;ep.ready=true;
-    /* REMOVE all existing lights so our sliders control 100% of lighting */
-    /* Remove ALL AI lights — we control lighting entirely */
+    /* Удаляем все текущие источники света — дальше светом управляет только панель */
+    /* Удаляем весь свет из AI-сцены, чтобы избежать конфликтов */
     var toRemove=[];
     ep.scene.traverse(function(o){if(o.isLight)toRemove.push(o)});
     toRemove.forEach(function(l){if(l.parent)l.parent.remove(l)});
-    /* Add our controllable lights with good defaults */
+    /* Добавляем наши управляемые источники с базовыми значениями */
     ep.dL=new THREE.DirectionalLight(0xffeedd,2.5);ep.dL.position.set(5,10,5);ep.scene.add(ep.dL);
     ep.pointLights=[];
-    /* Generate environment map from bg color for reflections */
+    /* Генерируем env map из цвета фона для отражений */
     ep.updateEnvMap=function(clr){
       var sz=64,faces=[];
       var col=clr||'#1a1a3a';
@@ -58,7 +58,7 @@ function _epInject(){
         var g=ctx.createRadialGradient(sz/2,sz/2,0,sz/2,sz/2,sz);
         g.addColorStop(0,col);g.addColorStop(0.5,col);g.addColorStop(1,'#000');
         ctx.fillStyle=g;ctx.fillRect(0,0,sz,sz);
-        /* subtle specular highlights */
+        /* Небольшие блики для живости отражений */
         ctx.fillStyle='rgba(255,255,255,0.06)';
         ctx.beginPath();ctx.arc(sz*0.3,sz*0.3,sz*0.15,0,Math.PI*2);ctx.fill();
         faces.push(cv);
@@ -80,23 +80,23 @@ function _epInject(){
         ep.pointLights.splice(idx,1);
       }
     };
-    /* Ensure scene.background is a Color object */
+    /* Гарантируем, что scene.background — это именно Color */
     if(!ep.scene.background||!ep.scene.background.isColor)ep.scene.background=new THREE.Color(0x04080f);
-    /* Remove heavy fog that makes distant objects white */
+    /* Убираем плотный туман, который выбеливает дальние объекты */
     if(ep.scene.fog)ep.scene.fog=null;
-    /* Enable tone mapping so bright lights produce color, not white blowout */
+    /* Включаем tone mapping, чтобы яркие зоны не "выгорали" в белый */
     if(ep.renderer){
       ep.renderer.toneMapping=THREE.ACESFilmicToneMapping;
       ep.renderer.toneMappingExposure=1.0;
       ep.renderer.outputEncoding=THREE.sRGBEncoding;
-      /* Read quality from parent */
+      /* Читаем выбранное качество из родительского интерфейса */
       try{var q=window.parent.document.getElementById('qualitySelect');
         if(q&&q.value==='low')ep.renderer.setPixelRatio(Math.min(window.devicePixelRatio,1));
         else if(q&&q.value==='high')ep.renderer.setPixelRatio(window.devicePixelRatio);
         else ep.renderer.setPixelRatio(Math.min(window.devicePixelRatio,1.5));
       }catch(e){}
     }
-    /* Upgrade MeshBasicMaterial to MeshStandardMaterial so lights affect all objects */
+    /* Конвертируем MeshBasicMaterial в MeshStandardMaterial, чтобы работал свет */
     ep.scene.traverse(function(o){if(o.isMesh&&o.material&&o.material.type==='MeshBasicMaterial'){
       var clr=o.material.color?o.material.color.clone():new THREE.Color(0xffffff);
       o.material=new THREE.MeshStandardMaterial({color:clr,opacity:o.material.opacity,transparent:o.material.transparent,map:o.material.map,roughness:0.5,metalness:0})}});
@@ -121,7 +121,7 @@ function _epInject(){
       else if(n==='brick'){x.fillStyle='#8b4513';x.fillRect(0,0,256,256);x.fillStyle='#a0522d';for(var r=0;r<8;r++){var off=r%2?32:0;for(var b=-1;b<5;b++)x.fillRect(off+b*64+2,r*32+2,60,28)}}
       else if(n==='wood'){x.fillStyle='#8b6914';x.fillRect(0,0,256,256);for(var w=0;w<40;w++){x.strokeStyle='rgba(60,30,0,'+(0.1+Math.random()*.2)+')';x.lineWidth=1+Math.random()*3;x.beginPath();var yy=Math.random()*256;x.moveTo(0,yy);for(var xx=0;xx<256;xx+=20)x.lineTo(xx,yy+Math.sin(xx/30)*5+Math.random()*4);x.stroke()}}
       var t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(2,2);return t};
-    /* Chrome environment map — gradient cubemap for reflections */
+    /* Хромовая env map: градиентный cubemap для отражений */
     ep.envMap=null;
     (function(){
       var size=128;
@@ -134,7 +134,7 @@ function _epInject(){
         var cs=colors[fi];
         for(var ci=0;ci<cs.length;ci++)grd.addColorStop(ci/(cs.length-1),cs[ci]);
         ctx.fillStyle=grd;ctx.fillRect(0,0,size,size);
-        /* Add some noise/sparkle */
+        /* Добавляем немного шума/искр для блеска */
         for(var sp=0;sp<40;sp++){ctx.fillStyle='rgba(255,255,255,'+(0.1+Math.random()*0.3)+')';var sx=Math.random()*size,sy=Math.random()*size;ctx.beginPath();ctx.arc(sx,sy,0.5+Math.random()*1.5,0,Math.PI*2);ctx.fill()}
         faces.push(cv);
       }
@@ -142,7 +142,7 @@ function _epInject(){
       cubeTex.needsUpdate=true;
       ep.envMap=cubeTex;
     })();
-    /* Save and apply chrome */
+    /* Подготавливаем состояние для эффекта хрома */
 
     ep._origMatsGlass={};
     ep.setGlass=function(amount){
@@ -174,7 +174,7 @@ function _epInject(){
           if('roughness' in o.material)o.material.roughness=orig.roughness*(1-amount*0.9);
           if('metalness' in o.material)o.material.metalness=orig.metalness+(0.15-orig.metalness)*amount;
           if('clearcoat' in o.material)o.material.clearcoat=amount;
-          o.material.side=2;/* DoubleSide */
+          o.material.side=2;/* Двусторонний рендер */
         }
         o.material.needsUpdate=true;
       });
@@ -194,13 +194,13 @@ function _epInject(){
         ep._gizmoDragging=ev.value;
         if(ep.controls)ep.controls.enabled=!ev.value;
       });
-      /* After each render frame, if gizmo target was moved by user,
-         force its position back (overriding animate loop's levitation) */
+      /* После кадра: если объект гизмо сдвинут, фиксируем его позицию,
+         чтобы внутренняя анимация сцены не перетирала перемещение */
       var _lastGizmoPos=null;
       ep.gizmo.addEventListener('objectChange',function(){
         if(ep.gizmo.object)_lastGizmoPos=ep.gizmo.object.position.clone();
       });
-      /* Run after every frame to enforce gizmo position */
+      /* Запускаем проверку после каждого кадра */
       var _enforceRunning=false;
       function enforceGizmo(){
         if(!ep._gizmoDragging){_enforceRunning=false;return}
@@ -215,27 +215,27 @@ function _epInject(){
       ep.scene.add(ep.gizmo);
     };
     document.head.appendChild(tcScript);
-    /* Find OrbitControls — robust search */
+    /* Ищем OrbitControls разными способами */
     ep.controls=null;
     function findControls(){
-      /* Strategy 1: window properties */
+      /* Стратегия 1: перебор свойств window */
       try{var keys=Object.getOwnPropertyNames(window);
         for(var k=0;k<keys.length;k++){try{var v=window[keys[k]];
           if(v&&v.enableRotate!==undefined&&v.enableZoom!==undefined&&v.target){ep.controls=v;return}
         }catch(e){}}
       }catch(e){}
-      /* Strategy 2: check common names */
+      /* Стратегия 2: проверка типовых имён переменных */
       try{if(window.controls&&window.controls.enableRotate!==undefined){ep.controls=window.controls;return}}catch(e){}
       try{if(window.orbitControls&&window.orbitControls.enableRotate!==undefined){ep.controls=window.orbitControls;return}}catch(e){}
     }
     findControls();
-    /* Retry if not found (controls may init after scene) */
+    /* Повторяем поиск позже: контролы могли инициализироваться не сразу */
     if(!ep.controls)setTimeout(findControls,500);
     if(!ep.controls)setTimeout(findControls,1500);
     ep.attachGizmo=function(uuid,mode){
       if(!ep.gizmo)return;
       var obj=ep.byUUID(uuid);if(!obj)return;
-      /* Walk up to root group */
+      /* Поднимаемся к корневой группе объекта */
       var target=obj;while(target.parent&&target.parent.type!=='Scene'&&target.parent.parent)target=target.parent;
       ep.gizmo.attach(target);
       ep.gizmo.mode=mode||'rotate';
@@ -252,7 +252,7 @@ function _epInject(){
       if(!o||!o.material)return;
       var clr=o.material.color?o.material.color.clone():new THREE.Color(0xffffff);
       var mat=o.material;
-      /* Reset to base first */
+      /* Сначала сбрасываем материал к базовому состоянию */
       mat.map=null;
       if('metalness' in mat)mat.metalness=0;
       if('roughness' in mat)mat.roughness=0.5;
@@ -260,7 +260,7 @@ function _epInject(){
       mat.transparent=false;mat.opacity=1;mat.side=0;
       if('emissive' in mat){mat.emissive.set(0x000000);mat.emissiveIntensity=0}
       mat.wireframe=false;
-      /* Apply preset */
+      /* Затем применяем выбранный пресет */
       if(preset==='chrome'){
         if('metalness' in mat)mat.metalness=0.95;
         if('roughness' in mat)mat.roughness=0.05;
@@ -298,13 +298,13 @@ function _epInject(){
         if('roughness' in mat)mat.roughness=0.3;
         if('clearcoat' in mat){mat.clearcoat=0.8;mat.clearcoatRoughness=0.1}
       }
-      /* default = just reset, already done above */
+      /* По умолчанию: ничего дополнительно, базовый сброс уже выполнен выше */
       mat.needsUpdate=true;
     };
     ep._chromeClones=[];
     ep.setChrome=function(amount){
       if(!ep.scene)return;
-      /* Collect meshes first to avoid traverse mutation */
+      /* Сначала собираем меши, чтобы безопасно менять сцену после обхода */
       var meshes=[];
       ep.scene.traverse(function(o){
         if(!o.isMesh||!o.material)return;
@@ -327,10 +327,10 @@ function _epInject(){
           if('metalness' in o.material)o.material.metalness=orig.metalness;
           if('roughness' in o.material)o.material.roughness=orig.roughness;
           if('envMap' in o.material){o.material.envMap=orig.envMap;o.material.envMapIntensity=orig.envMapIntensity}
-          /* Remove inner clone */
+          /* Удаляем внутренний клон */
           if(o._chromeInner){o.remove(o._chromeInner);o._chromeInner=null}
         } else {
-          /* Upgrade material to StandardMaterial if it doesn't support metalness */
+          /* Если материал без metalness — переводим в StandardMaterial */
           if(!('metalness' in o.material)){
             var clr=o.material.color?o.material.color.clone():new THREE.Color(0xffffff);
             var op=o.material.opacity;var tr=o.material.transparent;
@@ -340,9 +340,9 @@ function _epInject(){
           o.material.roughness=orig.roughness*(1-amount*0.95);
           o.material.envMap=ep.envMap;
           o.material.envMapIntensity=amount*2.5;
-          /* Create inner clone using same geometry shape */
+          /* Создаём внутренний клон на той же геометрии */
           if(!o._chromeInner&&o.geometry){
-            /* Skip tiny decorative meshes */
+            /* Пропускаем слишком мелкие декоративные меши */
             o.geometry.computeBoundingSphere();
             if(o.geometry.boundingSphere&&o.geometry.boundingSphere.radius<0.15)return;
             var clonedGeo=o.geometry.clone();
@@ -367,6 +367,7 @@ function _epInject(){
       });
     };
   }
+  // Подхват "чужой" сцены: если AI-код создал scene/camera в render(), забираем ссылки оттуда.
   function tryPatch(){
     if(typeof THREE==='undefined'){setTimeout(tryPatch,50);return}
     var orig=THREE.WebGLRenderer.prototype.render;
@@ -376,9 +377,11 @@ function _epInject(){
   }
   tryPatch();setTimeout(poll,300);
 }
+// Скрипт-инжектор вставляется в HTML, который возвращает модель.
 var INJECT='<'+'script>('+_epInject.toString()+')();<'+'/script>';
 function getEP(){try{var w=document.getElementById('sceneFrame').contentWindow;return w&&w._ep&&w._ep.ready?w._ep:null}catch(e){return null}}
 
+// Базовый набор "часто используемых" до накопления пользовательской статистики.
 var DEFAULT_POP=['❤','🔥','⚔','💎','🌟','⭐','✨','💀','👑','🗡','🛡','🌊','⚡','🌈','🏰','🐉','🧙','👸','🦸','🚀','🌲','🌌','🔮','🪄','☀','🌙','💧','❄','🌋','🎭','👻','🦄'];
 var emojiUsage={};
 var _store={get:function(k){if(window.storage)return window.storage.get(k);try{var v=localStorage.getItem(k);return v?{value:v}:null}catch(e){return null}},set:function(k,v){if(window.storage)return window.storage.set(k,v);try{localStorage.setItem(k,v)}catch(e){}}};
@@ -390,6 +393,7 @@ function getPopular(){
   return entries.slice(0,32).map(function(e){return e[0]});
 }
 function trackEmoji(em){emojiUsage[em]=(emojiUsage[em]||0)+1;saveUsage()}
+// Категории эмодзи для пикера (левая панель "Сюжет").
 var CATS=[
 {n:'⭐ Часто используемые',e:DEFAULT_POP},
 {n:'😀 Смайлики',e:['😀','😃','😄','😁','😆','😅','🤣','😂','🙂','🙃','😉','😊','😇','🥰','😍','🤩','😘','😋','😛','😜','🤪','🤗','🤔','😏','😒','🙄','😬','😌','😴','🤯','🤠','🥳','😎','🤓','😟','😲','😳','🥺','😢','😭','😱','😤','😡','😈','👿','💀','☠','💩','🤡','👻','👽','👾','🤖']},
@@ -405,6 +409,7 @@ var CATS=[
 {n:'✈ Транспорт',e:['🚲','🏍','🚂','✈','🛩','🛸','🚀','⛵','🚤','🛳','🚢']},
 {n:'🧪 Наука',e:['🔭','🔬','🧬','🧪','💡','💻','📡','🛸','🚀','🪐','🌌','⭐','☄','🌍','🔮']},
 {n:'🎵 Музыка',e:['🎵','🎶','🎤','🎧','🎷','🎸','🎹','🎻','🥁','🎬','🎭','🎨','🎪','🎡','🎢','🎊','🎉','🎈','🎆']}];
+// Набор быстрых сценариев для кнопок "Примеры".
 var ALL_EXAMPLES=[
 {l:'🧙 Квест',s:'🧙➡️🌲➡️🐉➡️⚔➡️💎'},{l:'🚀 Космос',s:'🧑‍🚀➡️🚀➡️🌌➡️🪐➡️⭐'},
 {l:'👸 Принцесса',s:'👸➡️🏰➡️🌹➡️💔'},{l:'🌊 Шторм',s:'🌊➡️⛩➡️⛈➡️💀➡️🌅'},
@@ -429,7 +434,7 @@ var cv=function(id){var els=document.querySelectorAll('[data-cc="'+id+'"]');for(
 var ov=function(id){return document.querySelector('[data-obj="'+id+'"]')};
 
 
-/* ═══ API SETTINGS ═══ */
+/* ═══ НАСТРОЙКИ API ═══ */
 var apiConfig={provider:'claude_ai',key:'',model:'anthropic/claude-sonnet-4-20250514',url:''};
 async function loadApiConfig(){try{var r=await _store.get('api_config');if(r&&r.value)apiConfig=JSON.parse(r.value)}catch(e){}}
 async function saveApiConfig(){try{await _store.set('api_config',JSON.stringify(apiConfig))}catch(e){}}
@@ -458,15 +463,17 @@ async function callLLM(sys,msg){
   }
   throw new Error('Выберите провайдера в настройках (🔑)');
 }
+// Переключение внутренних вкладок (сюжет/рендер) с синхронизацией состояния UI.
 function switchTab(n){document.querySelectorAll('.inner-tab').forEach(function(t,i){t.classList.toggle('active',i===(n==='story'?0:1))});$('tcStory').classList.toggle('active',n==='story');$('tcRender').classList.toggle('active',n==='render');if(n==='render')updRP()}
 function updRP(){var has=frame().style.display==='block';$('rpEmpty').style.display=has?'none':'flex';$('rpCtrl').style.display=has?'':'none';if(has){buildObjList();var ep=getEP();if(ep&&ep.scene){var bg=lv('bgC');if(bg&&ep.scene.background&&ep.scene.background.getHexString)bg.value='#'+ep.scene.background.getHexString()}}}
 var collapsedCats={};
 function buildPicker(f){var w=$('picker');w.innerHTML='';f=(f||'').trim().toLowerCase();CATS.forEach(function(cat,ci){var em=f?cat.e.filter(function(e){return e.includes(f)||cat.n.toLowerCase().includes(f)}):cat.e;if(!em.length)return;var d=document.createElement('div');d.className='picker-cat'+(collapsedCats[ci]?' collapsed':'');d.innerHTML='<div class="cat-name" data-cat-toggle="'+ci+'"><span>'+cat.n+' <span style="opacity:.4;font-size:.55rem">'+em.length+'</span></span><span class="cat-chevron">▼</span></div><div class="emoji-row">'+em.map(function(e){return'<div class="ep" data-emoji="'+e+'">'+e+'</div>'}).join('')+'</div>';w.appendChild(d)})}
 function renderStrip(){var s=$('strip');s.innerHTML='';story.forEach(function(e,i){if(i>0){var a=document.createElement('span');a.className='arrow-beat';a.textContent='→';s.appendChild(a)}var b=document.createElement('div');b.className='story-beat';b.innerHTML=e+'<div class="remove-beat" data-remove="'+i+'">×</div>';s.appendChild(b)});var p=document.createElement('div');p.className='beat-empty';p.textContent='＋';p.setAttribute('data-action','scrollPicker');s.appendChild(p)}
 
+// Отправка параметров освещения из UI в текущую сцену iframe.
 function sendLight(){var ep=getEP();if(!ep)return;try{
   ep.dL.color.set(lv('dirC').value);ep.dL.intensity=+lv('dirI').value;ep.dL.position.x=+lv('dirX').value;ep.dL.position.y=+lv('dirY').value;ep.dL.position.z=+lv('dirZ').value;
-  /* Update point lights from UI */
+  /* Обновляем point lights из значений интерфейса */
   document.querySelectorAll('[data-pl]').forEach(function(el){
     var parts=el.getAttribute('data-pl').split('-');
     var idx=+parts[0],prop=parts[1];
@@ -477,9 +484,9 @@ function sendLight(){var ep=getEP();if(!ep)return;try{
     if(prop==='y')pl.position.y=+el.value;
     if(prop==='z')pl.position.z=+el.value;
   });
-  /* Force materials to react to light changes */
+  /* Принудительно помечаем материалы на пересчёт после смены света */
   ep.scene.traverse(function(o){if(o.isMesh&&o.material)o.material.needsUpdate=true});
-  /* Background color — only if it's a Color (not a gradient texture) */
+  /* Цвет фона меняем только если фон задан как Color (не текстура) */
   var bgEl=lv('bgC');
   if(bgEl){
     var iw=frame().contentWindow;
@@ -487,10 +494,10 @@ function sendLight(){var ep=getEP();if(!ep)return;try{
     else if(!ep.scene.background&&iw&&iw.THREE){ep.scene.background=new iw.THREE.Color(bgEl.value)}
     if(ep.updateEnvMap)ep.updateEnvMap(bgEl.value);
   }
-  /* Env map intensity on all materials */
+  /* Применяем интенсивность env map ко всем подходящим материалам */
   var envI=lv('envI');if(envI){var ei=+envI.value;ep.scene.traverse(function(o){
     if(!o.isMesh||!o.material)return;
-    /* Force assign envMap from scene.environment if material supports it */
+    /* Принудительно назначаем envMap из scene.environment, если поддерживается */
     if(o.material.isMeshStandardMaterial||o.material.isMeshPhysicalMaterial){
       if(ep.scene.environment&&!o.material.envMap)o.material.envMap=ep.scene.environment;
       o.material.envMapIntensity=ei;o.material.needsUpdate=true;
@@ -500,6 +507,7 @@ function sendLight(){var ep=getEP();if(!ep)return;try{
   if(exEl){var iw=frame().contentWindow;if(iw&&iw._ep&&iw._ep.renderer)iw._ep.renderer.toneMappingExposure=+exEl.value}
 }catch(e){}}
 var plData=[{c:'#0a0066',i:3,x:0,y:5,z:0}];
+// Генерация карточек Point Light в панели рендера.
 function buildPointLightsUI(){
   var w=$('pointLightsWrap');if(!w)return;w.innerHTML='';
   plData.forEach(function(p,i){
@@ -512,17 +520,19 @@ function buildPointLightsUI(){
     w.appendChild(d);
   });
 }
+// Полная пересборка point lights в сцене из массива plData.
 function syncPointLights(){
   var ep=getEP();if(!ep)return;
   while(ep.pointLights.length>0)ep.removePointLight(ep.pointLights.length-1);
   plData.forEach(function(p){ep.addPointLight(p.c,p.i,p.x,p.y,p.z)});
-  /* Force material update so new lights affect objects */
+  /* Принудительный апдейт материалов, чтобы новый свет сразу сработал */
   ep.scene.traverse(function(o){if(o.isMesh&&o.material)o.material.needsUpdate=true});
 }
-/* Upgrade all MeshBasicMaterial to MeshStandardMaterial so lights affect them */
-/* upgradeMaterials removed - was causing black screen by converting BasicMaterial to StandardMaterial without sufficient lighting */
+/* Примечание: массовая конвертация Basic->Standard отключена */
+/* Раньше это давало "чёрный экран", если в сцене не хватало света */
 
-/* ═══ POST-PROCESSING FILTERS ═══ */
+/* ═══ ПОСТ-ЭФФЕКТЫ И ФИЛЬТРЫ ═══ */
+// Применение пост-эффектов через CSS/filter и канвас-оверлеи.
 function applyFX(){
   var f=frame();if(!f)return;
   var fv=function(id){var el=document.querySelector('[data-fx="'+id+'"]');return el?+el.value:0};
@@ -546,7 +556,7 @@ function applyFX(){
     gx.putImageData(gd,0,0);
   } else {gc.style.opacity='0'}
   $('scanOvl').style.opacity=fv('scanlines');
-  /* Chrome effect */
+  /* Эффект "хром" */
   var ep=getEP();
   var chrV=fv('chrome'),glV=fv('glass');
   if(ep&&ep.setChrome)ep.setChrome(chrV);
@@ -554,20 +564,22 @@ function applyFX(){
 }
 function applyCC(){applyFX()}
 function applyVig(){var v=+cv('vig').value;var c=$('vigC'),w=$('sceneWrap');c.width=w.offsetWidth;c.height=w.offsetHeight;c.style.opacity=v>0?'1':'0';var x=c.getContext('2d');x.clearRect(0,0,c.width,c.height);if(v<=0)return;var cx=c.width/2,cy=c.height/2,r=Math.max(cx,cy);var gr=x.createRadialGradient(cx,cy,r*.3,cx,cy,r);gr.addColorStop(0,'rgba(0,0,0,0)');gr.addColorStop(1,'rgba(0,0,0,'+v+')');x.fillStyle=gr;x.fillRect(0,0,c.width,c.height)}
+// Рендер списка градиентных карт: предпросмотр, прозрачность и режим смешивания.
 function buildGM(){var l=$('gmList');l.innerHTML='';GMs.forEach(function(g,i){var d=document.createElement('div');d.className='gm-card'+(g.on?' on':'');d.innerHTML='<div style="display:flex;align-items:center;gap:6px"><div class="gm-preview" style="background:linear-gradient(90deg,'+g.stops.join(',')+')"></div><button class="gm-btn'+(g.on?' on':'')+'" data-gm-toggle="'+i+'">✓</button><button class="gm-btn" data-gm-remove="'+i+'">✕</button></div><div class="gm-colors">'+g.stops.map(function(s,si){return'<input type="color" class="gm-clr" data-gm-clr="'+i+'-'+si+'" value="'+s+'">'}).join('')+'<button class="gm-btn" data-gm-add-stop="'+i+'" title="+ цвет" style="font-size:.6rem">+</button></div><div style="display:flex;gap:5px;align-items:center"><span style="font-size:.6rem;color:var(--render-txt2);min-width:48px">'+g.name+'</span><input type="range" class="rp-range" data-gm-op="'+i+'" min="0" max="1" step="0.05" value="'+g.op+'" style="flex:1"><select data-gm-bl="'+i+'" style="background:rgba(128,128,128,.1);border:1px solid var(--render-border);border-radius:3px;color:var(--render-txt);font-size:.55rem;padding:1px 2px">'+['color','overlay','multiply','screen','soft-light'].map(function(m){return'<option value="'+m+'"'+(g.bl===m?' selected':'')+'>'+m+'</option>'}).join('')+'</select></div>';l.appendChild(d)})}
+// Наложение активных градиентов на preview и фон 3D-сцены.
 function renderGrad(){
   var ep=getEP();
-  /* Also render to overlay canvas for preview */
+  /* Параллельно рисуем градиент на overlay-канвасе предпросмотра */
   var cv=$('gradC'),w=$('sceneWrap');cv.width=w.offsetWidth;cv.height=w.offsetHeight;
   var x=cv.getContext('2d');x.clearRect(0,0,cv.width,cv.height);
   var active=GMs.filter(function(g){return g.on});
   if(!active.length){cv.style.opacity='0';
-    /* Reset scene background to solid color */
+    /* Если активных градиентов нет — возвращаем однотонный фон */
     if(ep&&ep.scene){var bgEl=lv('bgC');if(bgEl){var iw=frame().contentWindow;if(iw&&iw.THREE){ep.scene.background=new iw.THREE.Color(bgEl.value)}if(ep.updateEnvMap)ep.updateEnvMap(bgEl.value)}}
     return}
   cv.style.opacity='0.3';cv.style.mixBlendMode='normal';cv.style.pointerEvents='none';
   active.forEach(function(g){x.save();x.globalAlpha=g.op;var gr=x.createLinearGradient(0,0,cv.width,0);g.stops.forEach(function(s,i){gr.addColorStop(i/(g.stops.length-1),s)});x.fillStyle=gr;x.fillRect(0,0,cv.width,cv.height);x.restore()});
-  /* Apply gradient as scene background texture */
+  /* Применяем градиент как текстуру фона сцены */
   if(ep&&ep.scene){
     try{
       var iw=frame().contentWindow;if(!iw||!iw.THREE)return;
@@ -579,7 +591,7 @@ function renderGrad(){
         bx.fillStyle=gr;bx.fillRect(0,0,512,512);bx.restore()});
       var tex=new iw.THREE.CanvasTexture(bgCanvas);
       ep.scene.background=tex;
-      /* Update env map to average gradient color for reflections */
+      /* Обновляем env map по среднему цвету градиента */
       if(ep.updateEnvMap){
         var avg=bx.getImageData(256,256,1,1).data;
         ep.updateEnvMap('rgb('+avg[0]+','+avg[1]+','+avg[2]+')');
@@ -587,10 +599,11 @@ function renderGrad(){
     }catch(e){}
   }
 }
-function sendObjProp(){var ep=getEP();if(!ep||!selUUID)return;try{var o=ep.byUUID(selUUID);var _m=getMat(o);if(!_m)return;o.material=_m;/* normalize to single */o.material.color.set(ov('color').value);o.material.opacity=+ov('opacity').value;o.material.transparent=o.material.opacity<1;if('roughness' in o.material)o.material.roughness=+ov('rough').value;
+// Применение свойств материала из контекстной панели к выбранному объекту.
+function sendObjProp(){var ep=getEP();if(!ep||!selUUID)return;try{var o=ep.byUUID(selUUID);var _m=getMat(o);if(!_m)return;o.material=_m;/* Нормализуем к одному материалу */o.material.color.set(ov('color').value);o.material.opacity=+ov('opacity').value;o.material.transparent=o.material.opacity<1;if('roughness' in o.material)o.material.roughness=+ov('rough').value;
     if('metalness' in o.material)o.material.metalness=+ov('metal').value;
     if('emissive' in o.material){o.material.emissive.set(ov('emClr').value);o.material.emissiveIntensity=+ov('emInt').value}
-    /* Update Chrome/Glass base values so they don't overwrite */
+    /* Обновляем базовые значения Chrome/Glass, чтобы эффект их не затирал */
     var uid=o.uuid;
     var ep2=getEP();
     if(ep2&&ep2._origMats&&ep2._origMats[uid]){ep2._origMats[uid].metalness=+ov('metal').value;ep2._origMats[uid].roughness=+ov('rough').value}
@@ -598,7 +611,7 @@ function sendObjProp(){var ep=getEP();if(!ep||!selUUID)return;try{var o=ep.byUUI
     o.material.needsUpdate=true}catch(e){}}
 function getObjRoot(o){var p=o;while(p.parent&&p.parent.type!=='Scene'&&p.parent.parent)p=p.parent;return p}
 
-/* Stop all rotation animations on a root group by freezing rotation values */
+/* Останавливаем ротационные анимации на корневой группе */
 function stopSpin(root){
   if(!root)return;
   root._epFrozen=true;
@@ -610,7 +623,7 @@ var selectedUUIDs=[];
 
 var ANIMS=['none','levitate','spinY','spinX','spinZ','pulse','bounce','swing'],
     ANIM_NAMES=['Нет','Левитация','Вращение Y','Вращение X','Вращение Z','Пульс','Прыжки','Качание'];
-var _objAnims={};/* uuid -> {id:intervalId, type:string} */
+var _objAnims={};/* для UUID: {id: идентификатор таймера, type: тип анимации} */
 function buildAnimBtns(){
   var g=$('animG');if(!g)return;g.innerHTML='';
   var current=selUUID&&_objAnims[selUUID]?_objAnims[selUUID].type:'none';
@@ -623,7 +636,7 @@ function applyObjAnim(uuid,type){
   var ep=getEP();if(!ep)return;
   var obj=ep.byUUID(uuid);if(!obj)return;
   var root=getObjRoot(obj);
-  /* Stop existing animation */
+  /* Останавливаем предыдущую анимацию для объекта */
   if(_objAnims[uuid]){clearInterval(_objAnims[uuid].id);delete _objAnims[uuid]}
   if(type==='none')return;
   var baseY=root.position.y;
@@ -641,10 +654,11 @@ function applyObjAnim(uuid,type){
   },16);
   _objAnims[uuid]={id:id,type:type};
 }
+// Сбор дерева объектов сцены (группы + отдельные меши) для панели "Объекты".
 function buildObjList(){
   var ep=getEP();if(!ep||!ep.scene)return;var w=$('objList');w.innerHTML='';
   function isGizmo(o){return o.type==='TransformControlsPlane'||o.parent&&o.parent.type==='TransformControlsGizmo'||(o.name&&o.name.match&&o.name.match(/^[XYZE]{1,4}$/))}
-  /* Collect groups with children */
+  /* Собираем группы с вложенными мешами */
   var groups={},loose=[];
   ep.scene.children.forEach(function(child){
     if(isGizmo(child))return;
@@ -654,7 +668,7 @@ function buildObjList(){
       if(meshes.length>0)groups[child.uuid]={name:child.name||'Group',meshes:meshes};
     } else if(child.isMesh){loose.push(child)}
   });
-  /* Render grouped */
+  /* Рендерим сгруппированные объекты */
   Object.keys(groups).forEach(function(gid){
     var g=groups[gid];
     var folder=document.createElement('div');folder.style.cssText='margin-bottom:4px';
@@ -674,7 +688,7 @@ function buildObjList(){
     });
     folder.appendChild(body);w.appendChild(folder);
   });
-  /* Render loose meshes */
+  /* Рендерим одиночные меши */
   loose.forEach(function(o){
     if(isGizmo(o))return;
     var d=document.createElement('div');d.style.cssText='display:flex;align-items:center;gap:4px;padding:2px 0;cursor:pointer;font-size:.65rem;color:var(--render-txt)';
@@ -684,16 +698,18 @@ function buildObjList(){
     w.appendChild(d);
   });
 }
+// Утилита пакетных операций: применяет callback ко всем отмеченным объектам.
 function applyToSelected(fn){var ep=getEP();if(!ep)return;selectedUUIDs.forEach(function(u){var o=ep.byUUID(u);if(o)fn(o,getObjRoot(o))})}
 function openObjCtx(uuid,cx,cy){var ep=getEP();if(!ep)return;var o=ep.byUUID(uuid);if(!o)return;selUUID=uuid;oVis=true;oWire=false;
-  /* Center geometry if not already centered */
-  /* Stop any spinning animation */
+  /* Здесь можно центрировать геометрию при необходимости */
+  /* Останавливаем возможное вращение перед ручным редактированием */
   stopSpin(getObjRoot(o));
   $('ctxName').textContent=o.name||(o.geometry?o.geometry.type.replace('BufferGeometry','').replace('Geometry',''):'Mesh');ov('color').value=o.material&&o.material.color?'#'+o.material.color.getHexString():'#ffffff';ov('opacity').value=o.material?o.material.opacity:1;ov('rough').value=o.material&&o.material.roughness!=null?o.material.roughness:.5;ov('metal').value=o.material&&o.material.metalness!=null?o.material.metalness:0;var ctx=$('objCtx');ctx.classList.add('visible');buildTexBtns();buildAnimBtns()}
 
 setInterval(function(){var ep=getEP();if(ep&&!_pollReady){_pollReady=true;$('outLabel').textContent='3D ● connected';$('addBtn').style.display='';syncPointLights();updRP()}if(!ep||!ep.lastClick)return;if(ep.lastClick.ts<=lastClickTs)return;lastClickTs=ep.lastClick.ts;openObjCtx(ep.lastClick.uuid,ep.lastClick.cx,ep.lastClick.cy)},80);
 
 
+// Догенерация: добавляет новые эмодзи в уже существующую сцену, не перегенерируя всё.
 async function addToScene(){
   if(story.length<1)return;
   var ep=getEP();if(!ep)return;
@@ -721,12 +737,12 @@ async function addToScene(){
       '10. ВЕРНИ ТОЛЬКО JavaScript код.';
     var code=await callLLM(sys,'Добавь в сцену: '+emojis);
     code=code.replace(/^```[a-z]*\n?/,'').replace(/\n?```$/,'').trim();
-    /* Execute in iframe context */
+    /* Выполняем сгенерированный код в контексте iframe */
     var iw=frame().contentWindow;
     if(iw){
       var fn=new iw.Function('scene','camera','renderer','THREE',code);
       fn(ep.scene,ep.camera,ep.renderer,iw.THREE);
-      /* Append code to lastCode so download includes it */
+      /* Дописываем код в lastCode, чтобы он попал в экспорт HTML */
       if(lastCode&&lastCode.indexOf('</body>')!==-1){
         lastCode=lastCode.replace('</body>','<'+'script>'+code+'<'+'/script>\n</body>');
       }
@@ -740,6 +756,7 @@ async function addToScene(){
   generatedEmojis=generatedEmojis.concat(story);
   story=[];renderStrip();
 }
+// Полная генерация новой сцены по текущему сюжету и выбранному стилю.
 async function generate(){
   if(story.length<1){$('strip').style.outline='2px solid var(--rust)';setTimeout(function(){$('strip').style.outline=''},1200);return}
   generatedEmojis=[];_sceneEmojiCount=0;$('genBtn').disabled=true;$('phView').style.display='none';frame().style.display='none';$('loader').style.display='flex';$('copyBtn').style.display='none';$('fsBtn').style.display='none';$('objCtx').classList.remove('visible');selUUID=null;_pollReady=false;
@@ -770,8 +787,10 @@ async function generate(){
   $('genBtn').disabled=false;
 }
 
-/* ═══ VIDEO RECORDING + CAMERA ANIMATION ═══ */
+/* ═══ ЗАПИСЬ ВИДЕО + АНИМАЦИЯ КАМЕРЫ ═══ */
+// Служебные переменные записи видео и анимации камеры.
 var _mediaRec=null,_recChunks=[],_camAnimId=0;
+// Временная анимация камеры во время записи ролика.
 function startCamAnim(ep){
   stopCamAnim();
   var animType=$('camAnim').value;if(animType==='none')return;
@@ -791,6 +810,7 @@ function startCamAnim(ep){
   },16);
 }
 function stopCamAnim(){if(_camAnimId){clearInterval(_camAnimId);_camAnimId=0}}
+// Запись canvas iframe в webm-файл и автоскачивание.
 function startRecording(){
   try{
     var canvas=frame().contentWindow.document.querySelector('canvas');
@@ -818,6 +838,7 @@ function startRecording(){
 function stopRecording(){stopCamAnim();if(_mediaRec&&_mediaRec.state==='recording'){_mediaRec.stop();$('recBtn').style.background='';$('recBtn').style.color=''}}
 function resetAll(){document.querySelectorAll('[data-cc]').forEach(function(el){var k=el.getAttribute('data-cc');el.value=(k==='hue'?0:k==='vig'||k==='sepia'?0:1)});applyCC();applyVig();var defs={'dirC':'#ffeedd','dirI':'2.0','ptC':'#5b4fcf','ptI':'0','ptX':'0','ptY':'5','ptZ':'0','expo':'1','envI':'1','dirX':'5','dirY':'10','dirZ':'5'};Object.keys(defs).forEach(function(k){var el=lv(k);if(el)el.value=defs[k]});sendLight();GMs.forEach(function(g){g.on=false});buildGM();renderGrad();frame().style.filter='';$('grainOvl').style.opacity=0;$('scanOvl').style.opacity=0;document.querySelectorAll('[data-fx]').forEach(function(el){el.value=0});var ep=getEP();if(ep&&ep.setChrome)ep.setChrome(0);if(ep&&ep.setGlass)ep.setGlass(0);$('objCtx').classList.remove('visible');selUUID=null}
 
+// Центральный обработчик кликов (делегирование событий) для всего интерфейса.
 document.addEventListener('click',function(e){var t=e.target,a=t.getAttribute('data-action')||t.closest('[data-action]')&&t.closest('[data-action]').getAttribute('data-action');
   if(t.classList.contains('ep')&&t.getAttribute('data-emoji')){if(story.length<8){var em=t.getAttribute('data-emoji');story.push(em);trackEmoji(em);CATS[0].e=getPopular();renderStrip();buildPicker($('search').value)}return}
   var catTog=t.getAttribute('data-cat-toggle')||t.closest('[data-cat-toggle]')&&t.closest('[data-cat-toggle]').getAttribute('data-cat-toggle');
@@ -844,7 +865,7 @@ document.addEventListener('click',function(e){var t=e.target,a=t.getAttribute('d
   else if(a==='addToScene')addToScene();
   else if(a==='copy'){navigator.clipboard.writeText(lastCode);$('copyBtn').textContent='✓';setTimeout(function(){$('copyBtn').textContent='⎘ HTML'},1500)}
   else if(a==='fs'){
-    /* Capture current iframe HTML (includes runtime changes) */
+    /* Берём текущий HTML из iframe (включая runtime-изменения) */
     var iw=frame().contentWindow;
     var exportHtml=lastCode;
     if(iw&&iw.document){
@@ -853,17 +874,17 @@ document.addEventListener('click',function(e){var t=e.target,a=t.getAttribute('d
     var ep=getEP();
     if(ep){
       var bs='<'+'script>setTimeout(function(){if(typeof THREE==="undefined"||typeof scene==="undefined")return;';
-      /* Remove ALL existing lights */
+      /* Удаляем все источники света */
       bs+='var rm=[];scene.traverse(function(o){if(o.isLight)rm.push(o)});rm.forEach(function(l){if(l.parent)l.parent.remove(l)});';
-      /* Tone mapping */
+      /* Настройки tone mapping */
       bs+='renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure='+lv('expo').value+';renderer.outputEncoding=THREE.sRGBEncoding;';
-      /* Background */
+      /* Цвет фона */
       var bgEl=lv('bgC');if(bgEl)bs+='scene.background=new THREE.Color(\''+bgEl.value+'\');';
-      /* Directional light */
+      /* Направленный свет */
       bs+='var dl=new THREE.DirectionalLight(new THREE.Color(\''+lv('dirC').value+'\'),'+lv('dirI').value+');dl.position.set('+lv('dirX').value+','+lv('dirY').value+','+lv('dirZ').value+');scene.add(dl);';
-      /* Point lights */
+      /* Точечные источники света */
       plData.forEach(function(p,i){bs+='var pl'+i+'=new THREE.PointLight(new THREE.Color(\''+p.c+'\'),'+p.i+',80);pl'+i+'.position.set('+p.x+','+p.y+','+p.z+');scene.add(pl'+i+');'});
-      /* Upgrade MeshBasicMaterial */
+      /* Конвертация MeshBasicMaterial */
       bs+='scene.traverse(function(o){if(o.isMesh&&o.material&&o.material.type==="MeshBasicMaterial"){var clr=o.material.color?o.material.color.clone():new THREE.Color(0xffffff);o.material=new THREE.MeshStandardMaterial({color:clr,roughness:0.5,metalness:0})}});';
       bs+='},1000);<'+'/script>';
       if(exportHtml.indexOf('</body>')!==-1)exportHtml=exportHtml.replace('</body>',bs+'</body>');
@@ -909,19 +930,19 @@ buildPicker('');
 EXAMPLES.forEach(function(ex){var c=document.createElement('span');c.className='ex-chip';c.textContent=ex.l;c.addEventListener('click',function(){var segs=Array.from(new Intl.Segmenter('und',{granularity:'grapheme'}).segment(ex.s));story=segs.map(function(x){return x.segment}).filter(function(x){return/\p{Emoji}/u.test(x)&&x!=='➡️'&&x!=='➡'});story.forEach(function(em){trackEmoji(em)});CATS[0].e=getPopular();renderStrip();buildPicker($('search').value)});$('exChips').appendChild(c)});
 buildGM();buildPointLightsUI();renderStrip();buildTexBtns();
 
-/* Load saved emoji usage and refresh popular category */
+/* Загружаем сохранённую статистику эмодзи и обновляем популярные */
 loadUsage().then(function(){CATS[0].e=getPopular();buildPicker($('search').value)}).catch(function(){});
 loadApiConfig().then(function(){}).catch(function(){});
-/* Load saved theme */
+/* Загружаем сохранённую тему */
 (async function(){try{var r=await _store.get('ep_theme');if(r&&r.value==='dark')document.documentElement.setAttribute('data-theme','dark')}catch(e){}})();
 
-/* ═══ LOAD SCENE ═══ */
+/* ═══ ЗАГРУЗКА СЦЕНЫ ═══ */
 $('sceneFileInput').addEventListener('change',function(e){
   var file=e.target.files[0];if(!file)return;
   var reader=new FileReader();
   reader.onload=function(ev){
     var html=ev.target.result;
-    /* Inject our control script if not present */
+    /* Вставляем наш скрипт управления, если его ещё нет */
     if(html.indexOf('window._ep')<0){
       if(html.indexOf('</body>')!==-1)html=html.replace('</body>',INJECT+'\n</body>');
     }
